@@ -2,7 +2,7 @@
 
 ### Real-time synced lyrics on your Even Realities G2 smart glasses
 
-::: {align="center"}
+{align="center"}
 [![Even
 Realities](https://img.shields.io/badge/Even%20Realities-G2-00cc66?style=for-the-badge)](https://www.evenrealities.com/)
 [![Spotify](https://img.shields.io/badge/Spotify-Connected-1DB954?style=for-the-badge&logo=spotify&logoColor=white)](https://developer.spotify.com/)
