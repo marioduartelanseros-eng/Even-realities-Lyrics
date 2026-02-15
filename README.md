@@ -2,27 +2,34 @@
 
 ### Real-time synced lyrics on your Even Realities G2 smart glasses
 
-{align="center"}
-[![Even
-Realities](https://img.shields.io/badge/Even%20Realities-G2-00cc66?style=for-the-badge)](https://www.evenrealities.com/)
-[![Spotify](https://img.shields.io/badge/Spotify-Connected-1DB954?style=for-the-badge&logo=spotify&logoColor=white)](https://developer.spotify.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+<p align="center">
 
-`<br/>`{=html}
+<a href="https://www.evenrealities.com/">
+  <img src="https://img.shields.io/badge/Even%20Realities-G2-00cc66?style=for-the-badge" />
+</a>
 
-LyricLens connects to your Spotify account and displays the lyrics of
-whatever you're currently listening to --- synced line-by-line in real
-time --- directly on your Even Realities G2 glasses.
+<a href="https://developer.spotify.com/">
+  <img src="https://img.shields.io/badge/Spotify-Connected-1DB954?style=for-the-badge&logo=spotify&logoColor=white" />
+</a>
 
-`<br/>`{=html}
+<a href="https://www.typescriptlang.org/">
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" />
+</a>
 
-![Display
-Size](https://img.shields.io/badge/display-576×200px-00cc66?style=flat-square)
-![Color](https://img.shields.io/badge/color-green%20monochrome-00cc66?style=flat-square)
-![Refresh
-Rate](https://img.shields.io/badge/refresh-60Hz-00cc66?style=flat-square)
-:::
+<a href="https://vitejs.dev/">
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+</a>
+
+</p>
+
+LyricLens connects to your Spotify account and displays the lyrics of whatever you're currently listening to — synced line-by-line in real time — directly on your Even Realities G2 glasses.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/display-576×200px-00cc66?style=flat-square" />
+  <img src="https://img.shields.io/badge/color-green%20monochrome-00cc66?style=flat-square" />
+  <img src="https://img.shields.io/badge/refresh-60Hz-00cc66?style=flat-square" />
+</p>
+
 
 ------------------------------------------------------------------------
 
