@@ -1,0 +1,264 @@
+/* =============================================
+   LyricLens — Even Realities Design System
+   Based on Even Hub UIUX Guidelines 2025
+   Font: FK Grotesk (fallback to system sans-serif)
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Text Colors */
+  --tc-highlight: #FFFFFF;
+  --tc-1st: #232323;
+  --tc-2nd: #7B7B7B;
+  --tc-accent: #232323;
+  --tc-red: #FF453A;
+  --tc-green: #4BB056;
+
+  /* Background Colors */
+  --bc-highlight: #232323;
+  --bc-1st: #FFFFFF;
+  --bc-2nd: #F0F0F0;
+  --bc-3rd: #EEEEEE;
+  --bc-4th: #E4E4E4;
+  --bc-accent: #FEF991;
+
+  /* Shaded Colors */
+  --sc-1st: rgba(0, 0, 0, 0.5);
+  --sc-2nd: rgba(35, 35, 35, 0.08);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bc-3rd);
+  color: var(--tc-1st);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  width: 100%;
+  max-width: 420px;
+  min-height: 100vh;
+  background: var(--bc-1st);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Screens ---- */
+.screen {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+}
+.screen.active {
+  display: flex;
+}
+
+/* ---- Login Screen ---- */
+#screen-login {
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 16px;
+}
+
+.logo h1 {
+  font-size: 24px;
+  font-weight: 400;
+  text-align: center;
+  color: var(--tc-1st);
+  letter-spacing: -0.72px;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--tc-2nd);
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: -0.15px;
+}
+
+.hint {
+  color: var(--tc-2nd);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.13px;
+  text-align: center;
+  max-width: 260px;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 14px 48px;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.17px;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--bc-highlight);
+  color: var(--tc-highlight);
+}
+.btn-primary:hover {
+  opacity: 0.85;
+}
+
+/* ---- Now Playing ---- */
+#screen-player {
+  padding: 0;
+}
+
+#now-playing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bc-1st);
+  border-bottom: 1px solid var(--bc-3rd);
+}
+
+#album-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  background: var(--bc-2nd);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+#track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+#track-name {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.17px;
+  color: var(--tc-1st);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#artist-name {
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: -0.15px;
+  color: var(--tc-2nd);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* ---- Progress Bar ---- */
+#progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--bc-3rd);
+  margin: 0;
+}
+
+#progress-fill {
+  height: 100%;
+  background: var(--tc-1st);
+  border-radius: 0;
+  width: 0%;
+  transition: width 0.3s linear;
+}
+
+#progress-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: -0.11px;
+  color: var(--tc-2nd);
+  padding: 6px 16px 0;
+}
+
+/* ---- Lyrics ---- */
+#lyrics-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px;
+  overflow: hidden;
+  background: var(--bc-1st);
+}
+
+#lyrics-scroll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  transition: transform 0.3s ease;
+}
+
+.lyric-line {
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: -0.15px;
+  color: var(--tc-2nd);
+  text-align: center;
+  line-height: 1.6;
+  transition: all 0.3s ease;
+  max-width: 340px;
+}
+
+.lyric-line.current {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.6px;
+  color: var(--tc-1st);
+}
+
+/* ---- Glasses Status Bar ---- */
+#glasses-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--bc-3rd);
+  background: var(--bc-1st);
+  margin-top: auto;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.indicator.connected {
+  background: var(--tc-green);
+}
+.indicator.disconnected {
+  background: var(--bc-4th);
+}
+
+#glasses-text {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.13px;
+  color: var(--tc-2nd);
+}

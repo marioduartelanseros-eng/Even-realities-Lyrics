@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LyricLens</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Login Screen -->
+    <div id="screen-login" class="screen active">
+      <div class="logo">
+        <h1>LyricLens</h1>
+        <p class="subtitle">Real-time lyrics on your G2</p>
+      </div>
+      <button id="btn-spotify-login" class="btn btn-primary">
+        Connect Spotify
+      </button>
+      <p class="hint">Link your Spotify to see lyrics for what you're playing</p>
+    </div>
+
+    <!-- Now Playing Screen -->
+    <div id="screen-player" class="screen">
+      <div id="now-playing">
+        <img id="album-art" src="" alt="Album art" />
+        <div id="track-info">
+          <h2 id="track-name">No track playing</h2>
+          <p id="artist-name">Play something on Spotify</p>
+        </div>
+      </div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
+      </div>
+      <div id="progress-times">
+        <span id="time-current">0:00</span>
+        <span id="time-total">0:00</span>
+      </div>
+      <div id="lyrics-container">
+        <div id="lyrics-scroll">
+          <p class="lyric-line" id="lyric-prev"></p>
+          <p class="lyric-line current" id="lyric-current">Waiting for lyrics...</p>
+          <p class="lyric-line" id="lyric-next"></p>
+        </div>
+      </div>
+      <div id="glasses-status">
+        <span id="glasses-indicator" class="indicator disconnected"></span>
+        <span id="glasses-text">Glasses: Not connected</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/Main.ts"></script>
+</body>
+</html>
