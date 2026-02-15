@@ -1,7 +1,7 @@
 // ========================================
 // PASTE YOUR SPOTIFY CLIENT ID HERE
 // ========================================
-const CLIENT_ID = '4c76a9f64daa452487942d8be15bbe2c';
+const CLIENT_ID = 'YOUR_SPOTIFY_ID_HERE';
 const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
 const SCOPES = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
 
