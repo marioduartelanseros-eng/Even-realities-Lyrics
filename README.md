@@ -189,6 +189,7 @@ Click login, authorize, and play a song.
 The grayscale PNG encoder and display pipeline approach is based on the
 work from **DisplayPlusMusic by @Oliemanq**, which was invaluable for
 understanding the Even Hub SDK image container system.
+https://github.com/Oliemanq/DisplayPlusMusic
 
 Thanks to **LRCLIB** for providing free synced lyrics with no
 authentication required.
