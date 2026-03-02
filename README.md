@@ -174,7 +174,7 @@ Click login, authorize, and play a song.
 
 ## Even hub testing QR code
 
-Your GitHub Pages URL for this repo is:
+GitHub Pages URL for this repo is:
 `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/`
 
 Open directly in Even Hub:
