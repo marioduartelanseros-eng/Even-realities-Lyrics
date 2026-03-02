@@ -67,7 +67,7 @@ body {
 #screen-login {
   justify-content: center;
   align-items: center;
-  gap: 32px;
+  gap: 18px;
   padding: 24px 16px;
 }
 
@@ -97,6 +97,39 @@ body {
   max-width: 260px;
 }
 
+#api-settings {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--bc-3rd);
+  border-radius: 12px;
+  background: var(--bc-2nd);
+}
+
+.settings-label {
+  font-size: 12px;
+  color: var(--tc-2nd);
+}
+
+.settings-input {
+  border: 1px solid var(--bc-4th);
+  border-radius: 10px;
+  background: var(--bc-1st);
+  color: var(--tc-1st);
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+.settings-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--tc-2nd);
+  word-break: break-all;
+}
+
 /* ---- Buttons ---- */
 .btn {
   border: none;
@@ -118,6 +151,14 @@ body {
 }
 .btn-primary:hover {
   opacity: 0.85;
+}
+
+.btn-secondary {
+  background: var(--bc-1st);
+  color: var(--tc-1st);
+  border: 1px solid var(--bc-4th);
+  padding: 10px 14px;
+  font-size: 14px;
 }
 
 /* ---- Now Playing ---- */

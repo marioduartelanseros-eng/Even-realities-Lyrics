@@ -14,6 +14,14 @@
         <h1>LyricLens</h1>
         <p class="subtitle">Real-time lyrics on your G2</p>
       </div>
+      <div id="api-settings">
+        <label class="settings-label" for="spotify-client-id">Spotify Client ID</label>
+        <input id="spotify-client-id" class="settings-input" type="text" placeholder="Paste your Spotify Client ID" />
+        <label class="settings-label" for="audd-api-token">AudD API Token (optional)</label>
+        <input id="audd-api-token" class="settings-input" type="text" placeholder="Paste your AudD token for ambient recognition" />
+        <p id="spotify-redirect-uri" class="settings-note"></p>
+        <button id="btn-save-settings" class="btn btn-secondary">Save Keys</button>
+      </div>
       <button id="btn-spotify-login" class="btn btn-primary">
         Connect Spotify
       </button>

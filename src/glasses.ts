@@ -150,23 +150,39 @@ function renderFrame(
   const lyricsX = 14;
   const lyricsMaxW = DISPLAY_W - 28;
 
-  // Previous line (dim)
+  // Previous line (dim, allow up to 2 wrapped lines)
+  c.textBaseline = 'top';
+  let lyricsCursorY = 90;
   if (prevLine) {
     c.fillStyle = '#555555';
-    c.font = '16px Arial, sans-serif';
-    c.fillText(fitText(c, prevLine, lyricsMaxW), lyricsX, 94);
+    c.font = '15px Arial, sans-serif';
+    const prevLines = wrapText(c, prevLine, lyricsMaxW, 2);
+    for (const line of prevLines) {
+      c.fillText(line, lyricsX, lyricsCursorY);
+      lyricsCursorY += 18;
+    }
+    lyricsCursorY += 4;
   }
 
-  // Current line (BRIGHT, larger, bold)
+  // Current line (BRIGHT, larger, allow up to 2 wrapped lines)
   c.fillStyle = '#FFFFFF';
-  c.font = 'bold 24px Arial, sans-serif';
-  c.fillText(fitText(c, currentLine, lyricsMaxW), lyricsX, 118);
+  c.font = 'bold 22px Arial, sans-serif';
+  const currentLines = wrapText(c, currentLine, lyricsMaxW, 2);
+  for (const line of currentLines) {
+    c.fillText(line, lyricsX, lyricsCursorY);
+    lyricsCursorY += 25;
+  }
+  lyricsCursorY += 4;
 
-  // Next line (dim)
+  // Next line (dim, allow up to 1 wrapped line)
   if (nextLine) {
     c.fillStyle = '#555555';
-    c.font = '16px Arial, sans-serif';
-    c.fillText(fitText(c, nextLine, lyricsMaxW), lyricsX, 152);
+    c.font = '15px Arial, sans-serif';
+    const nextLines = wrapText(c, nextLine, lyricsMaxW, 1);
+    for (const line of nextLines) {
+      c.fillText(line, lyricsX, lyricsCursorY);
+      lyricsCursorY += 18;
+    }
   }
 }
 
@@ -180,6 +196,73 @@ function fitText(c: CanvasRenderingContext2D, text: string, maxWidth: number): s
     t = t.slice(0, -1);
   }
   return t + '...';
+}
+
+function wrapText(
+  c: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  if (!normalized) return [''];
+
+  const words = normalized.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  let truncated = false;
+
+  for (const word of words) {
+    if (!word) continue;
+    const candidate = current ? `${current} ${word}` : word;
+    if (c.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+
+    if (!current) {
+      // Break long single words by character width.
+      let chunk = '';
+      for (const ch of word) {
+        const nextChunk = chunk + ch;
+        if (c.measureText(nextChunk).width <= maxWidth) {
+          chunk = nextChunk;
+        } else {
+          if (chunk) lines.push(chunk);
+          chunk = ch;
+          if (lines.length >= maxLines) {
+            truncated = true;
+            break;
+          }
+        }
+      }
+      current = chunk;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+
+    if (lines.length >= maxLines) {
+      truncated = true;
+      break;
+    }
+  }
+
+  if (current && lines.length < maxLines) {
+    lines.push(current);
+  } else if (current && lines.length >= maxLines) {
+    truncated = true;
+  }
+
+  if (lines.length > maxLines) {
+    truncated = true;
+  }
+
+  const limited = lines.slice(0, Math.max(1, maxLines));
+  if (truncated && limited.length > 0) {
+    limited[limited.length - 1] = fitText(c, `${limited[limited.length - 1]}...`, maxWidth);
+  }
+  return limited;
 }
 
 /**

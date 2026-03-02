@@ -1,8 +1,4 @@
-// ========================================
-// PASTE YOUR SPOTIFY CLIENT ID HERE
-// ========================================
-const CLIENT_ID = 'YOUR_SPOTIFY_ID_HERE';
-const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
+import { getSpotifyClientId, getSpotifyRedirectUri } from './runtime-config';
 const SCOPES = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
 
 // --- Token storage ---
@@ -13,7 +9,6 @@ function getToken(): string | null {
 function setToken(token: string, expiresIn: number): void {
   localStorage.setItem('spotify_access_token', token);
   localStorage.setItem('spotify_token_expiry', String(Date.now() + expiresIn * 1000));
-  localStorage.setItem('spotify_refresh_token', token); // PKCE uses same flow to refresh
 }
 
 function getRefreshToken(): string | null {
@@ -37,6 +32,11 @@ function generateRandomString(length: number): string {
 }
 
 async function generateCodeChallenge(verifier: string): Promise<string> {
+  if (!crypto?.subtle) {
+    throw new Error(
+      'This browser/webview does not support Web Crypto (PKCE). Open the app in a modern browser like Chrome.',
+    );
+  }
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
   const digest = await crypto.subtle.digest('SHA-256', data);
@@ -48,23 +48,37 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 // --- Auth flow ---
 export async function loginWithSpotify(): Promise<void> {
+  if (!window.isSecureContext) {
+    throw new Error('Spotify login requires a secure context (localhost/127.0.0.1 or HTTPS).');
+  }
+
+  const clientId = getSpotifyClientId();
+  if (!clientId) {
+    throw new Error('Set your Spotify Client ID first in the login settings.');
+  }
+  const redirectUri = getSpotifyRedirectUri();
+
   const codeVerifier = generateRandomString(64);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   localStorage.setItem('spotify_code_verifier', codeVerifier);
 
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: CLIENT_ID,
+    client_id: clientId,
     scope: SCOPES,
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: redirectUri,
   });
 
   window.location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
 }
 
 export async function handleCallback(): Promise<boolean> {
+  const clientId = getSpotifyClientId();
+  if (!clientId) return false;
+  const redirectUri = getSpotifyRedirectUri();
+
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (!code) return false;
@@ -77,10 +91,10 @@ export async function handleCallback(): Promise<boolean> {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: CLIENT_ID,
+        client_id: clientId,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
         code_verifier: codeVerifier,
       }),
     });
@@ -102,6 +116,8 @@ export async function handleCallback(): Promise<boolean> {
 }
 
 async function refreshAccessToken(): Promise<boolean> {
+  const clientId = getSpotifyClientId();
+  if (!clientId) return false;
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -110,7 +126,7 @@ async function refreshAccessToken(): Promise<boolean> {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: CLIENT_ID,
+        client_id: clientId,
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
       }),
@@ -130,6 +146,16 @@ async function refreshAccessToken(): Promise<boolean> {
   return false;
 }
 
+async function getValidToken(): Promise<string | null> {
+  let token = getToken();
+  if (!token || !isTokenValid()) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) return null;
+    token = getToken();
+  }
+  return token;
+}
+
 // --- Now Playing ---
 export interface NowPlaying {
   trackId: string;
@@ -144,12 +170,8 @@ export interface NowPlaying {
 }
 
 export async function getNowPlaying(): Promise<NowPlaying | null> {
-  let token = getToken();
-  if (!token || !isTokenValid()) {
-    const refreshed = await refreshAccessToken();
-    if (!refreshed) return null;
-    token = getToken();
-  }
+  const token = await getValidToken();
+  if (!token) return null;
 
   try {
     const response = await fetch(
@@ -181,4 +203,62 @@ export async function getNowPlaying(): Promise<NowPlaying | null> {
 
 export function getAccessToken(): string | null {
   return getToken();
+}
+
+export async function getAuthorizedAccessToken(): Promise<string | null> {
+  return getValidToken();
+}
+
+export function clearSpotifySession(): void {
+  localStorage.removeItem('spotify_access_token');
+  localStorage.removeItem('spotify_token_expiry');
+  localStorage.removeItem('spotify_refresh_token');
+  localStorage.removeItem('spotify_code_verifier');
+}
+
+export interface SpotifyTrackLookup {
+  trackId: string;
+  trackName: string;
+  artistName: string;
+  albumName: string;
+  albumArt: string;
+  durationMs: number;
+}
+
+export async function searchTrackOnSpotify(
+  trackName: string,
+  artistName: string,
+): Promise<SpotifyTrackLookup | null> {
+  const token = await getValidToken();
+  if (!token) return null;
+
+  const query = `track:${trackName} artist:${artistName}`;
+  const params = new URLSearchParams({
+    q: query,
+    type: 'track',
+    limit: '1',
+  });
+
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/search?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const item = data?.tracks?.items?.[0];
+    if (!item) return null;
+
+    return {
+      trackId: item.id,
+      trackName: item.name,
+      artistName: item.artists.map((a: { name: string }) => a.name).join(', '),
+      albumName: item.album?.name || '',
+      albumArt: item.album?.images?.[0]?.url || '',
+      durationMs: item.duration_ms || 0,
+    };
+  } catch (err) {
+    console.error('Spotify track search failed:', err);
+    return null;
+  }
 }

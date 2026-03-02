@@ -3,12 +3,27 @@ import {
   handleCallback,
   isLoggedIn,
   getNowPlaying,
-  getAccessToken,
+  getAuthorizedAccessToken,
+  clearSpotifySession,
   type NowPlaying,
 } from './spotify';
 import { fetchLyrics, type LyricsResult } from './lyrics';
 import { getCurrentLineIndex, type LrcLine } from './lrc-parser';
 import { initGlasses, displayLyricOnGlasses, setRingActionHandler } from './glasses';
+import {
+  isAmbientRecognitionConfigured,
+  recognizeAmbientTrack,
+  type RecognizedTrack,
+} from './music-recognition';
+import {
+  getAuddApiToken,
+  getSpotifyClientId,
+  getSpotifyRedirectUri,
+  getStoredAuddApiToken,
+  getStoredSpotifyClientId,
+  setAuddApiToken,
+  setSpotifyClientId,
+} from './runtime-config';
 
 // --- State ---
 let currentTrackId: string | null = null;
@@ -22,11 +37,20 @@ let pollInterval: ReturnType<typeof setInterval> | null = null;
 let isCurrentlyPlaying = false;
 let lyricsLoading = false;
 let noLyricsFound = false;
+let currentSource: 'spotify' | 'ambient' | null = null;
+let isAmbientRecognitionRunning = false;
+let lastAmbientRecognitionAt = 0;
+let ambientMicPromptDenied = false;
 
 // --- DOM refs ---
 const screenLogin = document.getElementById('screen-login')!;
 const screenPlayer = document.getElementById('screen-player')!;
 const btnLogin = document.getElementById('btn-spotify-login')!;
+const loginHint = document.querySelector('#screen-login .hint') as HTMLElement | null;
+const spotifyClientIdInput = document.getElementById('spotify-client-id') as HTMLInputElement | null;
+const auddApiTokenInput = document.getElementById('audd-api-token') as HTMLInputElement | null;
+const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement | null;
+const spotifyRedirectUriText = document.getElementById('spotify-redirect-uri');
 const albumArt = document.getElementById('album-art') as HTMLImageElement;
 const trackName = document.getElementById('track-name')!;
 const artistName = document.getElementById('artist-name')!;
@@ -74,9 +98,12 @@ function sendToGlasses(
 }
 
 function showGlassesIdle(): void {
+  const subtitle = isAmbientRecognitionConfigured()
+    ? 'Play from Spotify or nearby audio'
+    : 'Play something on Spotify';
   displayLyricOnGlasses(
     'No music playing',
-    'Play something on Spotify',
+    subtitle,
     '',
     'LyricLens',
     'Ready',
@@ -180,14 +207,19 @@ function resetLyricsState(): void {
   lastLineIndex = -1;
   lyricsLoading = false;
   noLyricsFound = false;
+  currentSource = null;
 }
 
 // --- Polling loop ---
-async function onTrackUpdate(np: NowPlaying): Promise<void> {
+async function onTrackUpdate(np: NowPlaying, source: 'spotify' | 'ambient' = 'spotify'): Promise<void> {
+  currentSource = source;
+
   // Update UI
   trackName.textContent = np.trackName;
-  artistName.textContent = np.artistName;
-  if (np.albumArt) albumArt.src = np.albumArt;
+  artistName.textContent = source === 'ambient'
+    ? `${np.artistName} (ambient)`
+    : np.artistName;
+  albumArt.src = np.albumArt || '';
 
   // Handle pause/play state change
   const wasPlaying = isCurrentlyPlaying;
@@ -252,23 +284,70 @@ async function onTrackUpdate(np: NowPlaying): Promise<void> {
 async function pollSpotify(): Promise<void> {
   const np = await getNowPlaying();
   if (np) {
-    await onTrackUpdate(np);
-  } else {
-    // Nothing playing
-    if (isCurrentlyPlaying || lastNowPlaying !== null) {
-      isCurrentlyPlaying = false;
-      trackName.textContent = 'No track playing';
-      artistName.textContent = 'Play something on Spotify';
-      lyricCurrent.textContent = 'Waiting for music...';
-      lyricPrev.textContent = '';
-      lyricNext.textContent = '';
-      progressFill.style.width = '0%';
-      timeCurrent.textContent = '0:00';
-      timeTotal.textContent = '0:00';
-      resetLyricsState();
-      lastNowPlaying = null;
-      showGlassesIdle();
+    await onTrackUpdate(np, 'spotify');
+    return;
+  }
+
+  const ambientTrack = await tryRecognizeAmbientTrack();
+  if (ambientTrack) {
+    const nowPlayingAmbient: NowPlaying = {
+      trackId: `ambient:${ambientTrack.trackId}`,
+      trackName: ambientTrack.trackName,
+      artistName: ambientTrack.artistName,
+      albumName: ambientTrack.albumName,
+      albumArt: ambientTrack.albumArt,
+      durationMs: ambientTrack.durationMs,
+      progressMs: ambientTrack.progressMs,
+      isPlaying: true,
+      timestamp: Date.now(),
+    };
+    await onTrackUpdate(nowPlayingAmbient, 'ambient');
+    return;
+  }
+
+  // Nothing playing and no ambient match
+  if (isCurrentlyPlaying || lastNowPlaying !== null) {
+    isCurrentlyPlaying = false;
+    trackName.textContent = 'No track playing';
+    artistName.textContent = isAmbientRecognitionConfigured()
+      ? 'Play Spotify or enable nearby audio'
+      : 'Play something on Spotify';
+    lyricCurrent.textContent = isAmbientRecognitionConfigured()
+      ? 'Waiting for Spotify or ambient match...'
+      : 'Waiting for music...';
+    lyricPrev.textContent = '';
+    lyricNext.textContent = '';
+    progressFill.style.width = '0%';
+    timeCurrent.textContent = '0:00';
+    timeTotal.textContent = '0:00';
+    resetLyricsState();
+    lastNowPlaying = null;
+    showGlassesIdle();
+  }
+}
+
+async function tryRecognizeAmbientTrack(): Promise<RecognizedTrack | null> {
+  if (!isAmbientRecognitionConfigured()) return null;
+  if (ambientMicPromptDenied) return null;
+  if (isAmbientRecognitionRunning) return null;
+
+  const now = Date.now();
+  const minGapMs = currentSource === 'ambient' ? 15000 : 25000;
+  if (now - lastAmbientRecognitionAt < minGapMs) return null;
+
+  isAmbientRecognitionRunning = true;
+  lastAmbientRecognitionAt = now;
+  try {
+    return await recognizeAmbientTrack();
+  } catch (err) {
+    const asError = err instanceof Error ? err : null;
+    if (asError?.name === 'NotAllowedError') {
+      ambientMicPromptDenied = true;
+      console.warn('Microphone permission denied; ambient recognition disabled for this session.');
     }
+    return null;
+  } finally {
+    isAmbientRecognitionRunning = false;
   }
 }
 
@@ -291,7 +370,7 @@ function startPolling(): void {
 function setupRingController(): void {
   setRingActionHandler(async (action) => {
     console.log('Ring action:', action);
-    const token = getAccessToken();
+    const token = await getAuthorizedAccessToken();
     if (!token) return;
 
     try {
@@ -327,8 +406,46 @@ function setupRingController(): void {
   });
 }
 
+function setupSettingsInputs(): void {
+  if (!spotifyClientIdInput || !auddApiTokenInput) return;
+
+  const effectiveClientId = getSpotifyClientId();
+  const effectiveAuddToken = getAuddApiToken();
+
+  spotifyClientIdInput.value = getStoredSpotifyClientId() || effectiveClientId;
+  auddApiTokenInput.value = getStoredAuddApiToken() || effectiveAuddToken;
+
+  if (spotifyRedirectUriText) {
+    spotifyRedirectUriText.textContent = `Spotify Redirect URI: ${getSpotifyRedirectUri()}`;
+  }
+}
+
+function setupSettingsSave(): void {
+  if (!btnSaveSettings || !spotifyClientIdInput || !auddApiTokenInput) return;
+
+  btnSaveSettings.addEventListener('click', () => {
+    const previousClientId = getSpotifyClientId();
+    const nextClientId = spotifyClientIdInput.value.trim();
+    const nextAuddToken = auddApiTokenInput.value.trim();
+
+    setSpotifyClientId(nextClientId);
+    setAuddApiToken(nextAuddToken);
+
+    if (previousClientId && previousClientId !== nextClientId) {
+      clearSpotifySession();
+    }
+
+    if (loginHint) {
+      loginHint.textContent = 'Keys saved locally. You can now connect Spotify.';
+    }
+  });
+}
+
 // --- Init ---
 async function init(): Promise<void> {
+  setupSettingsInputs();
+  setupSettingsSave();
+
   // Check for OAuth callback
   if (window.location.search.includes('code=')) {
     const success = await handleCallback();
@@ -352,7 +469,30 @@ async function init(): Promise<void> {
 
   // Show login
   showScreen('login');
-  btnLogin.addEventListener('click', () => loginWithSpotify());
+  btnLogin.addEventListener('click', async () => {
+    try {
+      if (!getSpotifyClientId()) {
+        if (loginHint) {
+          loginHint.textContent = 'Add your Spotify Client ID, click Save Keys, then connect.';
+        }
+        return;
+      }
+      btnLogin.setAttribute('disabled', 'true');
+      if (loginHint) {
+        loginHint.textContent = 'Opening Spotify login...';
+      }
+      await loginWithSpotify();
+    } catch (err) {
+      const message = err instanceof Error
+        ? err.message
+        : 'Spotify login failed. Check Spotify app redirect URI and try again.';
+      console.error('Spotify login start failed:', err);
+      if (loginHint) {
+        loginHint.textContent = message;
+      }
+      btnLogin.removeAttribute('disabled');
+    }
+  });
 }
 
 init();
