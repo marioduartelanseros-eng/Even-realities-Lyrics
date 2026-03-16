@@ -473,6 +473,11 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       console.log('Will retry glasses initialization...');
     }
   }
+  
+  // Fallback: If all retries exhausted without explicit return (shouldn't happen)
+  isConnected = false;
+  updateGlassesStatusUI(false);
+  return false;
 }
 
 export async function displayLyricOnGlasses(
