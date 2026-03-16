@@ -306,9 +306,11 @@ async function sendFrameToGlasses(): Promise<void> {
 }
 
 /**
- * Initialize glasses with retry logic for QR code loading scenarios
+ * Initialize glasses with retry logic for QR code loading scenarios.
+ * When the app loads via QR code in Even Hub, the SDK may need extra time to initialize.
+ * In web browsers, waitForEvenAppBridge() fails quickly so retries are minimal.
  */
-export async function initGlasses(maxRetries = 3, delayMs = 1000): Promise<boolean> {
+export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolean> {
   let lastError: Error | null = null;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
