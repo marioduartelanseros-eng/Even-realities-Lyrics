@@ -169,10 +169,14 @@ npm install
 
 **3. Create a Spotify App**
 
--   Go to Spotify Developer Dashboard\
--   Create a new app\
--   For Redirect URI: Add `http://127.0.0.1:5173/` (if hosting locally for testing) \ `[Your github pages link]/Even-realities-Lyrics/` (if cloning the repo)
+-   Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+-   Create a new app
+-   **For Redirect URIs**, you need to add **BOTH** of these URLs (so the app works in both environments):
+    - `http://127.0.0.1:5173/Even-realities-Lyrics` (for local simulator testing)
+    - `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics` (for real G2 glasses via GitHub Pages)
 -   Copy your Client ID
+
+> **Important**: The redirect URI must match **exactly** where your app is hosted. If you're using a different hosting platform or custom domain, add that URL instead of the GitHub Pages URL.
 
 **4. Configure your keys in-app**
 
@@ -219,6 +223,42 @@ Click login, authorize, and play a song.
     ├── glasses.ts       # Even Hub SDK integration (image + list mode)
     ├── png-encoder.ts   # Grayscale PNG encoder for glasses display
     └── style.css        # Even Realities design system CSS
+
+------------------------------------------------------------------------
+
+## 🔍 Troubleshooting
+
+### Spotify Authentication Issues
+
+If you see "Spotify login failed" or the app doesn't authenticate:
+
+1. **Check your Redirect URIs in Spotify Dashboard**
+   - Must include the **exact** URL where your app is hosted
+   - Local: `http://127.0.0.1:5173/Even-realities-Lyrics`
+   - Production: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics`
+   - **Note**: No trailing slash at the end
+
+2. **Open Browser Console** (F12) and check for errors
+   - Look for messages like "Starting Spotify OAuth flow with redirect URI:"
+   - Check if the redirect URI matches what you configured in Spotify Dashboard
+
+3. **Clear your browser cache and localStorage**
+   ```javascript
+   localStorage.clear();
+   location.reload();
+   ```
+
+4. **Verify you're using HTTPS or localhost**
+   - Spotify OAuth requires a secure context
+   - `http://127.0.0.1` ✅ works
+   - `http://192.168.x.x` ❌ won't work
+   - `https://your-domain.com` ✅ works
+
+### Glasses Not Connecting
+
+- Make sure you're running the app through the Even Hub app or simulator
+- Check that your glasses are paired and connected via Bluetooth
+- Try restarting the Even Hub app
 
 ------------------------------------------------------------------------
 
