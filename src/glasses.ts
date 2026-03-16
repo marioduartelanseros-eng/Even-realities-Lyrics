@@ -37,6 +37,7 @@ export function setRingActionHandler(handler: (action: 'click' | 'next' | 'prev'
 }
 
 interface EvenHubListEventPayload {
+  currentSelectItemIndex?: number;
   index?: number;
   itemIndex?: number;
 }
@@ -580,11 +581,14 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
         bridge.onEvenHubEvent((event: EvenHubEventPayload) => {
           console.log('EvenHub event:', event);
           if (event.listEvent && onRingAction) {
-            const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
+            const idx = event.listEvent.currentSelectItemIndex
+              ?? event.listEvent.index
+              ?? event.listEvent.itemIndex;
             console.log('Ring/list event index:', idx);
+            if (typeof idx !== 'number') return;
             if (idx === 1) onRingAction('next');
             else if (idx === 2) onRingAction('prev');
-            else onRingAction('click');
+            else if (idx === 0) onRingAction('click');
           }
         });
 
