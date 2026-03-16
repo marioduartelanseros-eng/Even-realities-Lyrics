@@ -1,4 +1,4 @@
-import { getSpotifyClientId, getSpotifyRedirectUri } from './runtime-config';
+import { getSpotifyClientId, getSpotifyClientSecret, getSpotifyRedirectUri } from './runtime-config';
 const SCOPES = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
 
 // --- Token storage ---
@@ -79,6 +79,7 @@ export async function loginWithSpotify(): Promise<void> {
 export async function handleCallback(): Promise<boolean> {
   const clientId = getSpotifyClientId();
   if (!clientId) return false;
+  const clientSecret = getSpotifyClientSecret();
   const redirectUri = getSpotifyRedirectUri();
   
   console.log('Processing OAuth callback with redirect URI:', redirectUri);
@@ -100,6 +101,7 @@ export async function handleCallback(): Promise<boolean> {
         code,
         redirect_uri: redirectUri,
         code_verifier: codeVerifier,
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
       }),
     });
 
@@ -130,6 +132,7 @@ export async function handleCallback(): Promise<boolean> {
 async function refreshAccessToken(): Promise<boolean> {
   const clientId = getSpotifyClientId();
   if (!clientId) return false;
+  const clientSecret = getSpotifyClientSecret();
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
@@ -141,6 +144,7 @@ async function refreshAccessToken(): Promise<boolean> {
         client_id: clientId,
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
+        ...(clientSecret ? { client_secret: clientSecret } : {}),
       }),
     });
 

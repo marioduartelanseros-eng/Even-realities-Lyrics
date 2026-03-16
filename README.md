@@ -42,6 +42,7 @@ https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/
 3. **Configure Spotify**
    - On first launch, click the settings icon
    - Enter your Spotify Client ID (from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
+   - If your setup requires it, also enter your Spotify Client Secret
    - Make sure your Spotify app has this redirect URI: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics`
    - Click "Save Keys" and then "Login with Spotify"
    - Complete the OAuth flow
@@ -235,6 +236,7 @@ npm install
 
 Use the login screen settings panel:
 - Spotify Client ID (required)
+- Spotify Client Secret (optional, for setups that require confidential client exchange)
 - AudD API token (optional, enables ambient recognition)
 
 Click **Save Keys**.
@@ -346,7 +348,7 @@ If you see "Spotify login failed" or the app doesn't authenticate:
    - Open Even Hub app on your phone
    - Scan the QR code from the README (or click the link directly)
    - The app will open on your G2 glasses
-   - Click settings, enter your Spotify Client ID
+   - Click settings, enter your Spotify Client ID (and Client Secret if required)
    - Click "Login with Spotify"
    - Authorize the app
    - Play a song and enjoy! 🎵
