@@ -305,11 +305,25 @@ async function sendFrameToGlasses(): Promise<void> {
   }
 }
 
-export async function initGlasses(): Promise<boolean> {
-  try {
-    bridge = await waitForEvenAppBridge();
-    isConnected = true;
-    console.log('Bridge ready:', bridge.ready);
+/**
+ * Initialize glasses with retry logic for QR code loading scenarios
+ */
+export async function initGlasses(maxRetries = 3, delayMs = 1000): Promise<boolean> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Initializing glasses (attempt ${attempt}/${maxRetries})...`);
+      
+      // Add delay on retry attempts to allow SDK to initialize
+      if (attempt > 1) {
+        console.log(`Waiting ${delayMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
+      bridge = await waitForEvenAppBridge();
+      isConnected = true;
+      console.log('Bridge ready:', bridge.ready);
 
     bridge.onDeviceStatusChanged((status) => {
       console.log('Device status changed:', status);
@@ -444,12 +458,28 @@ export async function initGlasses(): Promise<boolean> {
     console.error('All container types failed');
     updateGlassesStatusUI(false);
     return false;
-  } catch (err) {
-    console.warn('Even Hub SDK not available:', err);
-    isConnected = false;
-    updateGlassesStatusUI(false);
-    return false;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
+      
+      // If this was the last attempt, give up
+      if (attempt === maxRetries) {
+        console.error('Even Hub SDK not available after all retries:', lastError);
+        isConnected = false;
+        updateGlassesStatusUI(false);
+        return false;
+      }
+      
+      // Otherwise, continue to next retry
+      console.log('Will retry glasses initialization...');
+    }
   }
+  
+  // This should never be reached, but just in case
+  console.error('Failed to initialize glasses after all retries');
+  isConnected = false;
+  updateGlassesStatusUI(false);
+  return false;
 }
 
 export async function displayLyricOnGlasses(
