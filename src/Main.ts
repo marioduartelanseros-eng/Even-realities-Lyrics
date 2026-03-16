@@ -271,11 +271,15 @@ async function onTrackUpdate(np: NowPlaying, source: 'spotify' | 'ambient' = 'sp
         lyrics = result.synced;
         noLyricsFound = false;
         lyricCurrent.textContent = '';
+        // Immediately display the current lyric line
+        updateLyricsDisplay();
       } else if (result.plain) {
         plainLyrics = result.plain;
         noLyricsFound = true;
+        updateLyricsDisplay();
       } else {
         noLyricsFound = true;
+        updateLyricsDisplay();
       }
     }
   }
@@ -451,7 +455,8 @@ async function init(): Promise<void> {
     const success = await handleCallback();
     if (success) {
       showScreen('player');
-      initGlasses();
+      const glassesConnected = await initGlasses();
+      console.log('Glasses initialization result:', glassesConnected);
       setupRingController();
       startPolling();
       return;
@@ -461,7 +466,8 @@ async function init(): Promise<void> {
   // Check for existing session
   if (isLoggedIn()) {
     showScreen('player');
-    initGlasses();
+    const glassesConnected = await initGlasses();
+    console.log('Glasses initialization result:', glassesConnected);
     setupRingController();
     startPolling();
     return;
