@@ -54,12 +54,50 @@ function parseDeviceConnected(status: unknown): boolean | null {
     connected?: unknown;
     isConnected?: unknown;
     deviceConnected?: unknown;
+    connectType?: unknown;
     status?: unknown;
+    data?: unknown;
+    payload?: unknown;
+    isDisconnected?: unknown;
   };
 
   if (typeof candidate.connected === 'boolean') return candidate.connected;
   if (typeof candidate.isConnected === 'boolean') return candidate.isConnected;
   if (typeof candidate.deviceConnected === 'boolean') return candidate.deviceConnected;
+  if (typeof candidate.connected === 'number') return candidate.connected !== 0;
+  if (typeof candidate.isConnected === 'number') return candidate.isConnected !== 0;
+  if (typeof candidate.deviceConnected === 'number') return candidate.deviceConnected !== 0;
+  if (typeof candidate.isConnected === 'function') {
+    try {
+      const result = candidate.isConnected();
+      if (typeof result === 'boolean') return result;
+    } catch {
+      // Ignore method invocation errors from unknown payloads.
+    }
+  }
+  if (typeof candidate.isDisconnected === 'function') {
+    try {
+      const result = candidate.isDisconnected();
+      if (typeof result === 'boolean') return !result;
+    } catch {
+      // Ignore method invocation errors from unknown payloads.
+    }
+  }
+  if (typeof candidate.connectType === 'string') {
+    const normalizedConnectType = candidate.connectType.toLowerCase();
+    if (normalizedConnectType === 'connected' || normalizedConnectType === 'ready' || normalizedConnectType === 'online') {
+      return true;
+    }
+    if (
+      normalizedConnectType === 'disconnected'
+      || normalizedConnectType === 'offline'
+      || normalizedConnectType === 'not_connected'
+      || normalizedConnectType === 'connectionfailed'
+      || normalizedConnectType === 'connection_failed'
+    ) {
+      return false;
+    }
+  }
   if (typeof candidate.status === 'string') {
     const normalized = candidate.status.toLowerCase();
     if (normalized === 'connected' || normalized === 'ready' || normalized === 'online') {
@@ -68,6 +106,14 @@ function parseDeviceConnected(status: unknown): boolean | null {
     if (normalized === 'disconnected' || normalized === 'offline' || normalized === 'not_connected') {
       return false;
     }
+  }
+  if (candidate.data) {
+    const nestedResult = parseDeviceConnected(candidate.data);
+    if (nestedResult !== null) return nestedResult;
+  }
+  if (candidate.payload) {
+    const nestedResult = parseDeviceConnected(candidate.payload);
+    if (nestedResult !== null) return nestedResult;
   }
 
   return null;
@@ -552,10 +598,10 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       }
 
       const initialized = await initializeDisplayContainer();
-      if (initialized) {
-        return true;
+      if (!initialized) {
+        console.warn('Even Hub bridge is connected, but display container is not ready yet. Will retry on lyric updates.');
       }
-      throw new Error('Unable to create Even Hub display containers');
+      return true;
     } catch (err) {
       console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
       
