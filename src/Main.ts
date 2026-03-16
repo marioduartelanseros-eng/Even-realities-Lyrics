@@ -18,11 +18,13 @@ import {
 import {
   getAuddApiToken,
   getSpotifyClientId,
+  getStoredSpotifyClientSecret,
   getSpotifyRedirectUri,
   getStoredAuddApiToken,
   getStoredSpotifyClientId,
   setAuddApiToken,
   setSpotifyClientId,
+  setSpotifyClientSecret,
   clearRuntimeConfig,
 } from './runtime-config';
 
@@ -52,6 +54,7 @@ const screenPlayer = document.getElementById('screen-player')!;
 const btnLogin = document.getElementById('btn-spotify-login')!;
 const loginHint = document.querySelector('#screen-login .hint') as HTMLElement | null;
 const spotifyClientIdInput = document.getElementById('spotify-client-id') as HTMLInputElement | null;
+const spotifyClientSecretInput = document.getElementById('spotify-client-secret') as HTMLInputElement | null;
 const auddApiTokenInput = document.getElementById('audd-api-token') as HTMLInputElement | null;
 const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement | null;
 const spotifyRedirectUriText = document.getElementById('spotify-redirect-uri');
@@ -261,6 +264,7 @@ function clearAllCacheAndLogout(): void {
 
   // Clear settings input fields
   if (spotifyClientIdInput) spotifyClientIdInput.value = '';
+  if (spotifyClientSecretInput) spotifyClientSecretInput.value = '';
   if (auddApiTokenInput) auddApiTokenInput.value = '';
 
   // Show login screen
@@ -490,12 +494,13 @@ function setupRingController(): void {
 }
 
 function setupSettingsInputs(): void {
-  if (!spotifyClientIdInput || !auddApiTokenInput) return;
+  if (!spotifyClientIdInput || !spotifyClientSecretInput || !auddApiTokenInput) return;
 
   const effectiveClientId = getSpotifyClientId();
   const effectiveAuddToken = getAuddApiToken();
 
   spotifyClientIdInput.value = getStoredSpotifyClientId() || effectiveClientId;
+  spotifyClientSecretInput.value = getStoredSpotifyClientSecret();
   auddApiTokenInput.value = getStoredAuddApiToken() || effectiveAuddToken;
 
   if (spotifyRedirectUriText) {
@@ -504,17 +509,20 @@ function setupSettingsInputs(): void {
 }
 
 function setupSettingsSave(): void {
-  if (!btnSaveSettings || !spotifyClientIdInput || !auddApiTokenInput) return;
+  if (!btnSaveSettings || !spotifyClientIdInput || !spotifyClientSecretInput || !auddApiTokenInput) return;
 
   btnSaveSettings.addEventListener('click', () => {
     const previousClientId = getSpotifyClientId();
+    const previousClientSecret = getStoredSpotifyClientSecret();
     const nextClientId = spotifyClientIdInput.value.trim();
+    const nextClientSecret = spotifyClientSecretInput.value.trim();
     const nextAuddToken = auddApiTokenInput.value.trim();
 
     setSpotifyClientId(nextClientId);
+    setSpotifyClientSecret(nextClientSecret);
     setAuddApiToken(nextAuddToken);
 
-    if (previousClientId && previousClientId !== nextClientId) {
+    if (previousClientId !== nextClientId || previousClientSecret !== nextClientSecret) {
       clearSpotifySession();
     }
 

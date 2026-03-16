@@ -1,4 +1,5 @@
 const SPOTIFY_CLIENT_ID_KEY = 'settings_spotify_client_id';
+const SPOTIFY_CLIENT_SECRET_KEY = 'settings_spotify_client_secret';
 const AUDD_API_TOKEN_KEY = 'settings_audd_api_token';
 
 const ENV = (import.meta as ImportMeta & {
@@ -26,6 +27,23 @@ export function setSpotifyClientId(clientId: string): void {
   }
 }
 
+export function getStoredSpotifyClientSecret(): string {
+  return localStorage.getItem(SPOTIFY_CLIENT_SECRET_KEY)?.trim() || '';
+}
+
+export function getSpotifyClientSecret(): string {
+  return getStoredSpotifyClientSecret() || (ENV.VITE_SPOTIFY_CLIENT_SECRET?.trim() || '');
+}
+
+export function setSpotifyClientSecret(clientSecret: string): void {
+  const normalized = clientSecret.trim();
+  if (normalized) {
+    localStorage.setItem(SPOTIFY_CLIENT_SECRET_KEY, normalized);
+  } else {
+    localStorage.removeItem(SPOTIFY_CLIENT_SECRET_KEY);
+  }
+}
+
 export function getStoredAuddApiToken(): string {
   return localStorage.getItem(AUDD_API_TOKEN_KEY)?.trim() || '';
 }
@@ -45,5 +63,6 @@ export function setAuddApiToken(token: string): void {
 
 export function clearRuntimeConfig(): void {
   localStorage.removeItem(SPOTIFY_CLIENT_ID_KEY);
+  localStorage.removeItem(SPOTIFY_CLIENT_SECRET_KEY);
   localStorage.removeItem(AUDD_API_TOKEN_KEY);
 }
