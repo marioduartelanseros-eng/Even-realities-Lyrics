@@ -10,11 +10,12 @@ let displayMode: 'list' | 'image' | null = null;
 let listenersRegistered = false;
 let displayInitializationInFlight: Promise<boolean> | null = null;
 let lastDisplayInitAttemptAt = 0;
+let startupPageInitialized = false;
 
 const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
 const DISPLAY_INIT_RETRY_COOLDOWN_MS = 2000;
-const DISPLAY_INIT_TIMEOUT_MS = 1200;
+const DISPLAY_INIT_TIMEOUT_MS = 3000;
 
 // Display dimensions
 const DISPLAY_W = 576;
@@ -388,9 +389,12 @@ async function initializeDisplayContainer(): Promise<boolean> {
   displayInitializationInFlight = (async () => {
     try {
       ensureCanvas();
+      const containerCreateMethod = startupPageInitialized
+        ? 'rebuildPageContainer'
+        : 'createStartUpPageContainer';
 
       // Try image container
-      const imgResult = await activeBridge.callEvenApp('createStartUpPageContainer', {
+      const imgResult = await activeBridge.callEvenApp(containerCreateMethod, {
         containerTotalNum: 1,
         imageObject: [{
           containerID: CONTAINER_ID,
@@ -405,6 +409,7 @@ async function initializeDisplayContainer(): Promise<boolean> {
 
       if (imgResult === 0) {
         displayMode = 'image';
+        startupPageInitialized = true;
         console.log('Using IMAGE mode with PNG encoder');
 
         // Send initial frame
@@ -427,8 +432,10 @@ async function initializeDisplayContainer(): Promise<boolean> {
       }
 
       // Fallback: list mode (4 containers)
-      await activeBridge.callEvenApp('shutDownPageContainer', { exitMode: 0 });
-      const listResult = await activeBridge.callEvenApp('createStartUpPageContainer', {
+      if (!startupPageInitialized) {
+        await activeBridge.callEvenApp('shutDownPageContainer', { exitMode: 0 });
+      }
+      const listResult = await activeBridge.callEvenApp(containerCreateMethod, {
         containerTotalNum: 4,
         listObject: [
           {
@@ -497,6 +504,7 @@ async function initializeDisplayContainer(): Promise<boolean> {
 
       if (listResult === 0) {
         displayMode = 'list';
+        startupPageInitialized = true;
         console.log('Using LIST mode (4 containers fallback)');
         updateGlassesStatusUI(true);
         return true;
