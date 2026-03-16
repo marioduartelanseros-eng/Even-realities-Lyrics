@@ -9,9 +9,12 @@ let isConnected = false;
 let displayMode: 'list' | 'image' | null = null;
 let listenersRegistered = false;
 let displayInitializationInFlight: Promise<boolean> | null = null;
+let lastDisplayInitAttemptAt = 0;
 
 const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
+const DISPLAY_INIT_RETRY_COOLDOWN_MS = 2000;
+const DISPLAY_INIT_TIMEOUT_MS = 1200;
 
 // Display dimensions
 const DISPLAY_W = 576;
@@ -519,7 +522,15 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
           if (connected === true) {
             isConnected = true;
             if (!displayMode) {
-              void initializeDisplayContainer();
+              initializeDisplayContainer()
+                .then((initialized) => {
+                  if (!initialized) {
+                    console.error('Failed to reinitialize display container after reconnect; initialization will retry on the next lyric update');
+                  }
+                })
+                .catch((err) => {
+                  console.error('Display container reinitialization threw after reconnect:', err);
+                });
             } else {
               updateGlassesStatusUI(true);
             }
@@ -578,7 +589,27 @@ export async function displayLyricOnGlasses(
   elapsedMs?: number,
   totalMs?: number,
 ): Promise<void> {
-  if (!bridge || !isConnected || !displayMode) return;
+  if (!bridge || !isConnected) return;
+  if (!displayMode) {
+    const now = Date.now();
+    if (now - lastDisplayInitAttemptAt < DISPLAY_INIT_RETRY_COOLDOWN_MS) {
+      return;
+    }
+    lastDisplayInitAttemptAt = now;
+    let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const initialized = await Promise.race<boolean>([
+      initializeDisplayContainer(),
+      new Promise<boolean>((resolve) => {
+        initTimeoutId = setTimeout(() => resolve(false), DISPLAY_INIT_TIMEOUT_MS);
+      }),
+    ]).finally(() => {
+      if (initTimeoutId) clearTimeout(initTimeoutId);
+    });
+    if (!initialized) {
+      console.warn('Skipping glasses lyric update because display container is not initialized');
+      return;
+    }
+  }
 
   if (displayMode === 'image') {
     // Load album art (cached after first load)

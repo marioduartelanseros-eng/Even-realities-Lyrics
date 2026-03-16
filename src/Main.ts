@@ -439,6 +439,16 @@ function startPolling(): void {
   }, 100);
 }
 
+function initGlassesInBackground(): void {
+  initGlasses()
+    .then((glassesConnected) => {
+      console.log('Glasses initialization result:', glassesConnected);
+    })
+    .catch((err) => {
+      console.error('Glasses initialization failed:', err);
+    });
+}
+
 // --- Ring controller ---
 function setupRingController(): void {
   setRingActionHandler(async (action) => {
@@ -537,10 +547,9 @@ async function init(): Promise<void> {
       showScreen('player');
       // Allow time for Even Hub SDK to initialize when loading via QR code
       await new Promise(resolve => setTimeout(resolve, SDK_INITIALIZATION_DELAY_MS));
-      const glassesConnected = await initGlasses();
-      console.log('Glasses initialization result:', glassesConnected);
       setupRingController();
       startPolling();
+      initGlassesInBackground();
       return;
     }
   }
@@ -550,10 +559,9 @@ async function init(): Promise<void> {
     showScreen('player');
     // Allow time for Even Hub SDK to initialize when loading via QR code
     await new Promise(resolve => setTimeout(resolve, SDK_INITIALIZATION_DELAY_MS));
-    const glassesConnected = await initGlasses();
-    console.log('Glasses initialization result:', glassesConnected);
     setupRingController();
     startPolling();
+    initGlassesInBackground();
     return;
   }
 
