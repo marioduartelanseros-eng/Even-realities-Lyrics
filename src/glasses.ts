@@ -473,9 +473,6 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       console.log('Will retry glasses initialization...');
     }
   }
-  
-  // Unreachable code - all paths return in the loop above
-  return false;
 }
 
 export async function displayLyricOnGlasses(
