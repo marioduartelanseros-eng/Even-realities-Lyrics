@@ -25,6 +25,9 @@ import {
   setSpotifyClientId,
 } from './runtime-config';
 
+// --- Constants ---
+const SDK_INITIALIZATION_DELAY_MS = 500;
+
 // --- State ---
 let currentTrackId: string | null = null;
 let lyrics: LrcLine[] = [];
@@ -455,6 +458,8 @@ async function init(): Promise<void> {
     const success = await handleCallback();
     if (success) {
       showScreen('player');
+      // Allow time for Even Hub SDK to initialize when loading via QR code
+      await new Promise(resolve => setTimeout(resolve, SDK_INITIALIZATION_DELAY_MS));
       const glassesConnected = await initGlasses();
       console.log('Glasses initialization result:', glassesConnected);
       setupRingController();
@@ -466,6 +471,8 @@ async function init(): Promise<void> {
   // Check for existing session
   if (isLoggedIn()) {
     showScreen('player');
+    // Allow time for Even Hub SDK to initialize when loading via QR code
+    await new Promise(resolve => setTimeout(resolve, SDK_INITIALIZATION_DELAY_MS));
     const glassesConnected = await initGlasses();
     console.log('Glasses initialization result:', glassesConnected);
     setupRingController();
