@@ -259,6 +259,10 @@ function clearAllCacheAndLogout(): void {
   timeCurrent.textContent = '0:00';
   timeTotal.textContent = '0:00';
 
+  // Clear settings input fields
+  if (spotifyClientIdInput) spotifyClientIdInput.value = '';
+  if (auddApiTokenInput) auddApiTokenInput.value = '';
+
   // Show login screen
   showScreen('login');
 
