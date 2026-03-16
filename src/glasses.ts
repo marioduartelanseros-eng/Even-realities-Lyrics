@@ -7,6 +7,8 @@ import { encodeGrayscalePng } from './png-encoder';
 let bridge: EvenAppBridge | null = null;
 let isConnected = false;
 let displayMode: 'list' | 'image' | null = null;
+let listenersRegistered = false;
+let displayInitializationInFlight: Promise<boolean> | null = null;
 
 const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
@@ -28,6 +30,44 @@ let onRingAction: ((action: 'click' | 'next' | 'prev') => void) | null = null;
 
 export function setRingActionHandler(handler: (action: 'click' | 'next' | 'prev') => void): void {
   onRingAction = handler;
+}
+
+interface EvenHubListEventPayload {
+  index?: number;
+  itemIndex?: number;
+}
+
+interface EvenHubEventPayload {
+  listEvent?: EvenHubListEventPayload;
+}
+
+function parseDeviceConnected(status: unknown): boolean | null {
+  // Even Hub SDK status payloads vary by platform/version.
+  // Accept common boolean fields and simple textual status values.
+  if (typeof status === 'boolean') return status;
+  if (!status || typeof status !== 'object') return null;
+
+  const candidate = status as {
+    connected?: unknown;
+    isConnected?: unknown;
+    deviceConnected?: unknown;
+    status?: unknown;
+  };
+
+  if (typeof candidate.connected === 'boolean') return candidate.connected;
+  if (typeof candidate.isConnected === 'boolean') return candidate.isConnected;
+  if (typeof candidate.deviceConnected === 'boolean') return candidate.deviceConnected;
+  if (typeof candidate.status === 'string') {
+    const normalized = candidate.status.toLowerCase();
+    if (normalized === 'connected' || normalized === 'ready' || normalized === 'online') {
+      return true;
+    }
+    if (normalized === 'disconnected' || normalized === 'offline' || normalized === 'not_connected') {
+      return false;
+    }
+  }
+
+  return null;
 }
 
 function ensureCanvas(): CanvasRenderingContext2D {
@@ -305,6 +345,147 @@ async function sendFrameToGlasses(): Promise<void> {
   }
 }
 
+async function initializeDisplayContainer(): Promise<boolean> {
+  const activeBridge = bridge;
+  if (!activeBridge) return false;
+  if (displayInitializationInFlight) return displayInitializationInFlight;
+
+  displayInitializationInFlight = (async () => {
+    try {
+      ensureCanvas();
+
+      // Try image container
+      const imgResult = await activeBridge.callEvenApp('createStartUpPageContainer', {
+        containerTotalNum: 1,
+        imageObject: [{
+          containerID: CONTAINER_ID,
+          containerName: CONTAINER_NAME,
+          xPosition: 0,
+          yPosition: 0,
+          width: DISPLAY_W,
+          height: DISPLAY_H,
+        }],
+      });
+      console.log('IMAGE container result:', imgResult);
+
+      if (imgResult === 0) {
+        displayMode = 'image';
+        console.log('Using IMAGE mode with PNG encoder');
+
+        // Send initial frame
+        const c = ensureCanvas();
+        c.fillStyle = '#000000';
+        c.fillRect(0, 0, DISPLAY_W, DISPLAY_H);
+        c.fillStyle = '#FFFFFF';
+        c.font = 'bold 24px Arial, sans-serif';
+        c.textBaseline = 'middle';
+        c.textAlign = 'center';
+        c.fillText('LyricLens', DISPLAY_W / 2, DISPLAY_H / 2 - 14);
+        c.fillStyle = '#888888';
+        c.font = '14px Arial, sans-serif';
+        c.fillText('Waiting for music...', DISPLAY_W / 2, DISPLAY_H / 2 + 14);
+        c.textAlign = 'left';
+        await sendFrameToGlasses();
+
+        updateGlassesStatusUI(true);
+        return true;
+      }
+
+      // Fallback: list mode (4 containers)
+      await activeBridge.callEvenApp('shutDownPageContainer', { exitMode: 0 });
+      const listResult = await activeBridge.callEvenApp('createStartUpPageContainer', {
+        containerTotalNum: 4,
+        listObject: [
+          {
+            containerID: CONTAINER_ID,
+            containerName: 'title',
+            xPosition: 15,
+            yPosition: 5,
+            width: 610,
+            height: 95,
+            itemContainer: {
+              itemCount: 2,
+              itemWidth: 590,
+              isItemSelectBorderEn: 1,
+              itemName: ['LyricLens', ''],
+            },
+            isEventCapture: 0,
+          },
+          {
+            containerID: CONTAINER_ID + 1,
+            containerName: 'prev',
+            xPosition: 15,
+            yPosition: 105,
+            width: 610,
+            height: 40,
+            itemContainer: {
+              itemCount: 1,
+              itemWidth: 590,
+              isItemSelectBorderEn: 0,
+              itemName: [''],
+            },
+            isEventCapture: 0,
+          },
+          {
+            containerID: CONTAINER_ID + 2,
+            containerName: 'current',
+            xPosition: 15,
+            yPosition: 150,
+            width: 610,
+            height: 40,
+            itemContainer: {
+              itemCount: 1,
+              itemWidth: 590,
+              isItemSelectBorderEn: 1,
+              itemName: ['Waiting for music...'],
+            },
+            isEventCapture: 1,
+          },
+          {
+            containerID: CONTAINER_ID + 3,
+            containerName: 'next',
+            xPosition: 15,
+            yPosition: 195,
+            width: 610,
+            height: 40,
+            itemContainer: {
+              itemCount: 1,
+              itemWidth: 590,
+              isItemSelectBorderEn: 0,
+              itemName: [''],
+            },
+            isEventCapture: 0,
+          },
+        ],
+      });
+      console.log('LIST 4-container result:', listResult);
+
+      if (listResult === 0) {
+        displayMode = 'list';
+        console.log('Using LIST mode (4 containers fallback)');
+        updateGlassesStatusUI(true);
+        return true;
+      }
+
+      console.error('All container types failed');
+      displayMode = null;
+      updateGlassesStatusUI(false);
+      return false;
+    } catch (err) {
+      console.error('Failed to initialize Even Hub display container:', err);
+      displayMode = null;
+      updateGlassesStatusUI(false);
+      return false;
+    }
+  })();
+
+  try {
+    return await displayInitializationInFlight;
+  } finally {
+    displayInitializationInFlight = null;
+  }
+}
+
 /**
  * Initialize glasses with retry logic for QR code loading scenarios.
  * When the app loads via QR code in Even Hub, the SDK may need extra time to initialize.
@@ -325,139 +506,45 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       isConnected = true;
       console.log('Bridge ready:', bridge.ready);
 
-    bridge.onDeviceStatusChanged((status) => {
-      console.log('Device status changed:', status);
-    });
+      if (!listenersRegistered) {
+        bridge.onDeviceStatusChanged((status) => {
+          console.log('Device status changed:', status);
+          const connected = parseDeviceConnected(status);
+          if (connected === false) {
+            isConnected = false;
+            displayMode = null;
+            updateGlassesStatusUI(false);
+            return;
+          }
+          if (connected === true) {
+            isConnected = true;
+            if (!displayMode) {
+              void initializeDisplayContainer();
+            } else {
+              updateGlassesStatusUI(true);
+            }
+          }
+        });
 
-    bridge.onEvenHubEvent((event: any) => {
-      console.log('EvenHub event:', event);
-      if (event.listEvent && onRingAction) {
-        const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
-        console.log('Ring/list event index:', idx);
-        if (idx === 1) onRingAction('next');
-        else if (idx === 2) onRingAction('prev');
-        else onRingAction('click');
+        bridge.onEvenHubEvent((event: EvenHubEventPayload) => {
+          console.log('EvenHub event:', event);
+          if (event.listEvent && onRingAction) {
+            const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
+            console.log('Ring/list event index:', idx);
+            if (idx === 1) onRingAction('next');
+            else if (idx === 2) onRingAction('prev');
+            else onRingAction('click');
+          }
+        });
+
+        listenersRegistered = true;
       }
-    });
 
-    ensureCanvas();
-
-    // Try image container
-    const imgResult = await bridge.callEvenApp('createStartUpPageContainer', {
-      containerTotalNum: 1,
-      imageObject: [{
-        containerID: CONTAINER_ID,
-        containerName: CONTAINER_NAME,
-        xPosition: 0,
-        yPosition: 0,
-        width: DISPLAY_W,
-        height: DISPLAY_H,
-      }],
-    });
-    console.log('IMAGE container result:', imgResult);
-
-    if (imgResult === 0) {
-      displayMode = 'image';
-      console.log('Using IMAGE mode with PNG encoder');
-
-      // Send initial frame
-      const c = ensureCanvas();
-      c.fillStyle = '#000000';
-      c.fillRect(0, 0, DISPLAY_W, DISPLAY_H);
-      c.fillStyle = '#FFFFFF';
-      c.font = 'bold 24px Arial, sans-serif';
-      c.textBaseline = 'middle';
-      c.textAlign = 'center';
-      c.fillText('LyricLens', DISPLAY_W / 2, DISPLAY_H / 2 - 14);
-      c.fillStyle = '#888888';
-      c.font = '14px Arial, sans-serif';
-      c.fillText('Waiting for music...', DISPLAY_W / 2, DISPLAY_H / 2 + 14);
-      c.textAlign = 'left';
-      await sendFrameToGlasses();
-
-      updateGlassesStatusUI(true);
-      return true;
-    }
-
-    // Fallback: list mode (4 containers)
-    await bridge.callEvenApp('shutDownPageContainer', { exitMode: 0 });
-    const listResult = await bridge.callEvenApp('createStartUpPageContainer', {
-      containerTotalNum: 4,
-      listObject: [
-        {
-          containerID: CONTAINER_ID,
-          containerName: 'title',
-          xPosition: 15,
-          yPosition: 5,
-          width: 610,
-          height: 95,
-          itemContainer: {
-            itemCount: 2,
-            itemWidth: 590,
-            isItemSelectBorderEn: 1,
-            itemName: ['LyricLens', ''],
-          },
-          isEventCapture: 0,
-        },
-        {
-          containerID: CONTAINER_ID + 1,
-          containerName: 'prev',
-          xPosition: 15,
-          yPosition: 105,
-          width: 610,
-          height: 40,
-          itemContainer: {
-            itemCount: 1,
-            itemWidth: 590,
-            isItemSelectBorderEn: 0,
-            itemName: [''],
-          },
-          isEventCapture: 0,
-        },
-        {
-          containerID: CONTAINER_ID + 2,
-          containerName: 'current',
-          xPosition: 15,
-          yPosition: 150,
-          width: 610,
-          height: 40,
-          itemContainer: {
-            itemCount: 1,
-            itemWidth: 590,
-            isItemSelectBorderEn: 1,
-            itemName: ['Waiting for music...'],
-          },
-          isEventCapture: 1,
-        },
-        {
-          containerID: CONTAINER_ID + 3,
-          containerName: 'next',
-          xPosition: 15,
-          yPosition: 195,
-          width: 610,
-          height: 40,
-          itemContainer: {
-            itemCount: 1,
-            itemWidth: 590,
-            isItemSelectBorderEn: 0,
-            itemName: [''],
-          },
-          isEventCapture: 0,
-        },
-      ],
-    });
-    console.log('LIST 4-container result:', listResult);
-
-    if (listResult === 0) {
-      displayMode = 'list';
-      console.log('Using LIST mode (4 containers fallback)');
-      updateGlassesStatusUI(true);
-      return true;
-    }
-
-    console.error('All container types failed');
-    updateGlassesStatusUI(false);
-    return false;
+      const initialized = await initializeDisplayContainer();
+      if (initialized) {
+        return true;
+      }
+      throw new Error('Unable to create Even Hub display containers');
     } catch (err) {
       console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
       
