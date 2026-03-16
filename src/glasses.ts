@@ -7,6 +7,8 @@ import { encodeGrayscalePng } from './png-encoder';
 let bridge: EvenAppBridge | null = null;
 let isConnected = false;
 let displayMode: 'list' | 'image' | null = null;
+let listenersRegistered = false;
+let displayInitializationInFlight: Promise<boolean> | null = null;
 
 const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
@@ -28,6 +30,33 @@ let onRingAction: ((action: 'click' | 'next' | 'prev') => void) | null = null;
 
 export function setRingActionHandler(handler: (action: 'click' | 'next' | 'prev') => void): void {
   onRingAction = handler;
+}
+
+function parseDeviceConnected(status: unknown): boolean | null {
+  if (typeof status === 'boolean') return status;
+  if (!status || typeof status !== 'object') return null;
+
+  const candidate = status as {
+    connected?: unknown;
+    isConnected?: unknown;
+    deviceConnected?: unknown;
+    status?: unknown;
+  };
+
+  if (typeof candidate.connected === 'boolean') return candidate.connected;
+  if (typeof candidate.isConnected === 'boolean') return candidate.isConnected;
+  if (typeof candidate.deviceConnected === 'boolean') return candidate.deviceConnected;
+  if (typeof candidate.status === 'string') {
+    const normalized = candidate.status.toLowerCase();
+    if (normalized === 'connected' || normalized === 'ready' || normalized === 'online') {
+      return true;
+    }
+    if (normalized === 'disconnected' || normalized === 'offline' || normalized === 'not_connected') {
+      return false;
+    }
+  }
+
+  return null;
 }
 
 function ensureCanvas(): CanvasRenderingContext2D {
@@ -305,45 +334,15 @@ async function sendFrameToGlasses(): Promise<void> {
   }
 }
 
-/**
- * Initialize glasses with retry logic for QR code loading scenarios.
- * When the app loads via QR code in Even Hub, the SDK may need extra time to initialize.
- * In web browsers, waitForEvenAppBridge() fails quickly so retries are minimal.
- */
-export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`Initializing glasses (attempt ${attempt}/${maxRetries})...`);
-      
-      // Add delay on retry attempts to allow SDK to initialize
-      if (attempt > 1) {
-        console.log(`Waiting ${delayMs}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-      
-      bridge = await waitForEvenAppBridge();
-      isConnected = true;
-      console.log('Bridge ready:', bridge.ready);
+async function initializeDisplayContainer(): Promise<boolean> {
+  if (!bridge) return false;
+  if (displayInitializationInFlight) return displayInitializationInFlight;
 
-    bridge.onDeviceStatusChanged((status) => {
-      console.log('Device status changed:', status);
-    });
-
-    bridge.onEvenHubEvent((event: any) => {
-      console.log('EvenHub event:', event);
-      if (event.listEvent && onRingAction) {
-        const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
-        console.log('Ring/list event index:', idx);
-        if (idx === 1) onRingAction('next');
-        else if (idx === 2) onRingAction('prev');
-        else onRingAction('click');
-      }
-    });
-
+  displayInitializationInFlight = (async () => {
     ensureCanvas();
 
     // Try image container
-    const imgResult = await bridge.callEvenApp('createStartUpPageContainer', {
+    const imgResult = await bridge!.callEvenApp('createStartUpPageContainer', {
       containerTotalNum: 1,
       imageObject: [{
         containerID: CONTAINER_ID,
@@ -380,8 +379,8 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
     }
 
     // Fallback: list mode (4 containers)
-    await bridge.callEvenApp('shutDownPageContainer', { exitMode: 0 });
-    const listResult = await bridge.callEvenApp('createStartUpPageContainer', {
+    await bridge!.callEvenApp('shutDownPageContainer', { exitMode: 0 });
+    const listResult = await bridge!.callEvenApp('createStartUpPageContainer', {
       containerTotalNum: 4,
       listObject: [
         {
@@ -456,8 +455,77 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
     }
 
     console.error('All container types failed');
+    displayMode = null;
     updateGlassesStatusUI(false);
     return false;
+  })();
+
+  try {
+    return await displayInitializationInFlight;
+  } finally {
+    displayInitializationInFlight = null;
+  }
+}
+
+/**
+ * Initialize glasses with retry logic for QR code loading scenarios.
+ * When the app loads via QR code in Even Hub, the SDK may need extra time to initialize.
+ * In web browsers, waitForEvenAppBridge() fails quickly so retries are minimal.
+ */
+export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Initializing glasses (attempt ${attempt}/${maxRetries})...`);
+      
+      // Add delay on retry attempts to allow SDK to initialize
+      if (attempt > 1) {
+        console.log(`Waiting ${delayMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+      
+      bridge = await waitForEvenAppBridge();
+      isConnected = true;
+      console.log('Bridge ready:', bridge.ready);
+
+      if (!listenersRegistered) {
+        bridge.onDeviceStatusChanged((status) => {
+          console.log('Device status changed:', status);
+          const connected = parseDeviceConnected(status);
+          if (connected === false) {
+            isConnected = false;
+            displayMode = null;
+            updateGlassesStatusUI(false);
+            return;
+          }
+          if (connected === true) {
+            isConnected = true;
+            if (!displayMode) {
+              void initializeDisplayContainer();
+            } else {
+              updateGlassesStatusUI(true);
+            }
+          }
+        });
+
+        bridge.onEvenHubEvent((event: any) => {
+          console.log('EvenHub event:', event);
+          if (event.listEvent && onRingAction) {
+            const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
+            console.log('Ring/list event index:', idx);
+            if (idx === 1) onRingAction('next');
+            else if (idx === 2) onRingAction('prev');
+            else onRingAction('click');
+          }
+        });
+
+        listenersRegistered = true;
+      }
+
+      const initialized = await initializeDisplayContainer();
+      if (initialized) {
+        return true;
+      }
+      throw new Error('Unable to create Even Hub display containers');
     } catch (err) {
       console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
       
