@@ -311,8 +311,6 @@ async function sendFrameToGlasses(): Promise<void> {
  * In web browsers, waitForEvenAppBridge() fails quickly so retries are minimal.
  */
 export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolean> {
-  let lastError: Error | null = null;
-  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Initializing glasses (attempt ${attempt}/${maxRetries})...`);
@@ -461,12 +459,11 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
     updateGlassesStatusUI(false);
     return false;
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
       
       // If this was the last attempt, give up
       if (attempt === maxRetries) {
-        console.error('Even Hub SDK not available after all retries:', lastError);
+        console.error('Even Hub SDK not available after all retries:', err);
         isConnected = false;
         updateGlassesStatusUI(false);
         return false;
@@ -477,10 +474,7 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
     }
   }
   
-  // This should never be reached, but just in case
-  console.error('Failed to initialize glasses after all retries');
-  isConnected = false;
-  updateGlassesStatusUI(false);
+  // Unreachable code - all paths return in the loop above
   return false;
 }
 
