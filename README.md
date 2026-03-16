@@ -2,7 +2,11 @@
 
 ### Real-time synced lyrics on your Even Realities G2 smart glasses
 
-## Even hub testing QR code
+## 📱 Deploy & Test on G2 Glasses
+
+### Production QR Code
+
+**✅ No regeneration needed** - The OAuth redirect URI fix was made in the code, not the URL.
 
 GitHub Pages URL for this repo is:
 `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/`
@@ -19,13 +23,62 @@ https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/
   </a>
 </p>
 
-If you want to test from local dev without deploying first, create a tunnel URL and run:
+### 🕶️ Testing on Your G2 Glasses
+
+**The QR code does NOT need to be regenerated after the authentication fix.** The fix was in the code itself (dynamic redirect URI handling), not the deployment URL.
+
+#### Option 1: Test Production on Real Glasses (Recommended)
+
+1. **Deploy to GitHub Pages**
+   - Merge your changes to the `main` branch
+   - GitHub Actions will automatically build and deploy to: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/`
+   - Wait ~2-3 minutes for deployment to complete
+
+2. **Open on Your Glasses**
+   - Open the **Even Hub app** on your phone
+   - Use the QR code scanner (or click the QR code image above to open directly)
+   - The app will load on your G2 glasses
+
+3. **Configure Spotify**
+   - On first launch, click the settings icon
+   - Enter your Spotify Client ID (from [Spotify Developer Dashboard](https://developer.spotify.com/dashboard))
+   - Make sure your Spotify app has this redirect URI: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics`
+   - Click "Save Keys" and then "Login with Spotify"
+   - Complete the OAuth flow
+   - Play a song on Spotify and enjoy synced lyrics on your glasses! 🎵
+
+#### Option 2: Test Local Development with Simulator
+
+If you want to test changes before deploying:
 
 ```bash
-npx evenhub-simulator https://YOUR_TUNNEL_URL
+# In terminal 1: Start dev server
+npx vite --host
+
+# In terminal 2: Launch simulator
+npx evenhub-simulator http://127.0.0.1:5173
 ```
 
-Then use that same tunnel URL inside the QR image link above.
+**Note**: For local testing, your Spotify app must have this redirect URI: `http://127.0.0.1:5173/Even-realities-Lyrics`
+
+#### Option 3: Test Local Development on Real Glasses (Advanced)
+
+For testing local changes on real glasses without deploying:
+
+1. **Create a tunnel** (using ngrok, cloudflare tunnel, or similar):
+   ```bash
+   # Example with ngrok
+   ngrok http 5173
+   ```
+
+2. **Update your Spotify app** redirect URIs to include: `https://YOUR_TUNNEL_URL/Even-realities-Lyrics`
+
+3. **Generate a temporary QR code** for your tunnel URL:
+   ```
+   https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=https://YOUR_TUNNEL_URL/Even-realities-Lyrics/
+   ```
+
+4. **Scan the QR code** with Even Hub app on your phone
 
 ------------------------------------------------------------------------
 
@@ -256,9 +309,63 @@ If you see "Spotify login failed" or the app doesn't authenticate:
 
 ### Glasses Not Connecting
 
-- Make sure you're running the app through the Even Hub app or simulator
-- Check that your glasses are paired and connected via Bluetooth
+**If the app doesn't load on your glasses:**
+- Make sure you're scanning the QR code through the **Even Hub app** on your phone (not your phone's camera)
+- Check that your G2 glasses are paired and connected via Bluetooth
+- Verify the glasses have sufficient battery
 - Try restarting the Even Hub app
+
+**If the app loads but shows blank/frozen:**
+- Check your internet connection
+- Make sure GitHub Pages deployment is complete (check the Actions tab in GitHub)
+- Try force-closing and reopening the Even Hub app
+- Clear the app cache in Even Hub settings
+
+### After the OAuth Fix
+
+**Q: Do I need to regenerate the QR code after the authentication fix?**
+
+**A: No!** ❌ The QR code does NOT need to be regenerated. The fix improved how the app determines its redirect URI at runtime (using `window.location.origin`), but the deployment URL remains the same: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/`
+
+**Q: How do I test it now?**
+
+**A: Follow these steps:**
+
+1. **Ensure your Spotify app has the correct redirect URI:**
+   - Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+   - Edit your app settings
+   - Verify `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics` is in the Redirect URIs list
+   - **Important**: No trailing slash!
+
+2. **Deploy your changes:**
+   - Merge to `main` branch (or push to trigger GitHub Actions)
+   - Wait for the deployment to complete (~2-3 minutes)
+   - Check the Actions tab to confirm it's deployed
+
+3. **Test on your glasses:**
+   - Open Even Hub app on your phone
+   - Scan the QR code from the README (or click the link directly)
+   - The app will open on your G2 glasses
+   - Click settings, enter your Spotify Client ID
+   - Click "Login with Spotify"
+   - Authorize the app
+   - Play a song and enjoy! 🎵
+
+### Common Issues on Glasses
+
+**App crashes or shows "Failed to load":**
+- The build might have failed - check GitHub Actions logs
+- Try accessing the URL directly in a web browser first: `https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/`
+
+**Spotify OAuth doesn't work:**
+- Double-check the redirect URI in Spotify Dashboard matches exactly
+- Check browser console logs if testing in simulator (F12)
+- Verify your Spotify Client ID is correct
+
+**No lyrics appear:**
+- Make sure a song is actually playing in Spotify
+- Check that the song has lyrics available (try a popular song)
+- The app polls every 3 seconds - give it a moment to load
 
 ------------------------------------------------------------------------
 
