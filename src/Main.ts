@@ -440,7 +440,7 @@ function startPolling(): void {
 }
 
 function initGlassesInBackground(): void {
-  void initGlasses()
+  initGlasses()
     .then((glassesConnected) => {
       console.log('Glasses initialization result:', glassesConnected);
     })
