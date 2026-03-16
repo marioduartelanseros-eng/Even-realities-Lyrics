@@ -16,6 +16,7 @@ const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
 const DISPLAY_INIT_RETRY_COOLDOWN_MS = 2000;
 const DISPLAY_INIT_TIMEOUT_MS = 3000;
+const FRAME_STABILIZATION_DELAY_MS = 300;
 
 // Display dimensions
 const DISPLAY_W = 576;
@@ -429,7 +430,7 @@ async function initializeDisplayContainer(): Promise<boolean> {
         c.font = '14px Arial, sans-serif';
         c.fillText('Waiting for music...', DISPLAY_W / 2, DISPLAY_H / 2 + 14);
         c.textAlign = 'left';
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, FRAME_STABILIZATION_DELAY_MS));
         await sendFrameToGlasses();
 
         updateGlassesStatusUI(true);
