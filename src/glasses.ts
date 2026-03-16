@@ -44,30 +44,62 @@ interface EvenHubEventPayload {
   listEvent?: EvenHubListEventPayload;
 }
 
-function parseDeviceConnected(status: unknown): boolean | null {
+const CONNECTED_STATUS_VALUES = new Set(['connected', 'ready', 'online']);
+const DISCONNECTED_STATUS_VALUES = new Set([
+  'disconnected',
+  'offline',
+  'not_connected',
+  'connectionfailed',
+  'connection_failed',
+]);
+const MAX_STATUS_PARSE_DEPTH = 4;
+
+function parseConnectedToken(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase();
+    if (CONNECTED_STATUS_VALUES.has(normalized)) return true;
+    if (DISCONNECTED_STATUS_VALUES.has(normalized)) return false;
+  }
+  return null;
+}
+
+function parseDeviceConnected(status: unknown, depth = 0): boolean | null {
   // Even Hub SDK status payloads vary by platform/version.
   // Accept common boolean fields and simple textual status values.
-  if (typeof status === 'boolean') return status;
+  const direct = parseConnectedToken(status);
+  if (direct !== null) return direct;
   if (!status || typeof status !== 'object') return null;
+  if (depth >= MAX_STATUS_PARSE_DEPTH) return null;
 
   const candidate = status as {
     connected?: unknown;
     isConnected?: unknown;
     deviceConnected?: unknown;
+    connectType?: unknown;
     status?: unknown;
+    data?: unknown;
+    payload?: unknown;
   };
 
-  if (typeof candidate.connected === 'boolean') return candidate.connected;
-  if (typeof candidate.isConnected === 'boolean') return candidate.isConnected;
-  if (typeof candidate.deviceConnected === 'boolean') return candidate.deviceConnected;
-  if (typeof candidate.status === 'string') {
-    const normalized = candidate.status.toLowerCase();
-    if (normalized === 'connected' || normalized === 'ready' || normalized === 'online') {
-      return true;
-    }
-    if (normalized === 'disconnected' || normalized === 'offline' || normalized === 'not_connected') {
-      return false;
-    }
+  const connectedValue = parseConnectedToken(candidate.connected);
+  if (connectedValue !== null) return connectedValue;
+  const isConnectedValue = parseConnectedToken(candidate.isConnected);
+  if (isConnectedValue !== null) return isConnectedValue;
+  const deviceConnectedValue = parseConnectedToken(candidate.deviceConnected);
+  if (deviceConnectedValue !== null) return deviceConnectedValue;
+  const connectTypeValue = parseConnectedToken(candidate.connectType);
+  if (connectTypeValue !== null) return connectTypeValue;
+  const statusValue = parseConnectedToken(candidate.status);
+  if (statusValue !== null) return statusValue;
+  if (candidate.data) {
+    const dataResult = parseDeviceConnected(candidate.data, depth + 1);
+    if (dataResult !== null) return dataResult;
+  }
+  if (candidate.payload) {
+    const payloadResult = parseDeviceConnected(candidate.payload, depth + 1);
+    if (payloadResult !== null) return payloadResult;
   }
 
   return null;
@@ -552,10 +584,10 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       }
 
       const initialized = await initializeDisplayContainer();
-      if (initialized) {
-        return true;
+      if (!initialized) {
+        console.warn('Even Hub bridge is connected, but display container is not ready yet. Will retry on lyric updates.');
       }
-      throw new Error('Unable to create Even Hub display containers');
+      return true;
     } catch (err) {
       console.warn(`Glasses initialization attempt ${attempt}/${maxRetries} failed:`, err);
       
