@@ -16,6 +16,7 @@ const CONTAINER_ID = 100;
 const CONTAINER_NAME = 'lyrics';
 const DISPLAY_INIT_RETRY_COOLDOWN_MS = 2000;
 const DISPLAY_INIT_TIMEOUT_MS = 3000;
+const FRAME_STABILIZATION_DELAY_MS = 300;
 
 // Display dimensions
 const DISPLAY_W = 576;
@@ -37,6 +38,7 @@ export function setRingActionHandler(handler: (action: 'click' | 'next' | 'prev'
 }
 
 interface EvenHubListEventPayload {
+  currentSelectItemIndex?: number;
   index?: number;
   itemIndex?: number;
 }
@@ -407,9 +409,12 @@ async function initializeDisplayContainer(): Promise<boolean> {
       });
       console.log('IMAGE container result:', imgResult);
 
-      if (imgResult === 0) {
+      if (imgResult === 0 || imgResult === 1) {
         displayMode = 'image';
         startupPageInitialized = true;
+        if (imgResult === 1) {
+          console.log('IMAGE container already exists; continuing in IMAGE mode');
+        }
         console.log('Using IMAGE mode with PNG encoder');
 
         // Send initial frame
@@ -425,6 +430,7 @@ async function initializeDisplayContainer(): Promise<boolean> {
         c.font = '14px Arial, sans-serif';
         c.fillText('Waiting for music...', DISPLAY_W / 2, DISPLAY_H / 2 + 14);
         c.textAlign = 'left';
+        await new Promise(resolve => setTimeout(resolve, FRAME_STABILIZATION_DELAY_MS));
         await sendFrameToGlasses();
 
         updateGlassesStatusUI(true);
@@ -556,6 +562,7 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
           if (connected === false) {
             isConnected = false;
             displayMode = null;
+            startupPageInitialized = false;
             updateGlassesStatusUI(false);
             return;
           }
@@ -580,11 +587,14 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
         bridge.onEvenHubEvent((event: EvenHubEventPayload) => {
           console.log('EvenHub event:', event);
           if (event.listEvent && onRingAction) {
-            const idx = event.listEvent.index ?? event.listEvent.itemIndex ?? 0;
+            const idx = event.listEvent.currentSelectItemIndex
+              ?? event.listEvent.index
+              ?? event.listEvent.itemIndex;
             console.log('Ring/list event index:', idx);
+            if (typeof idx !== 'number') return;
             if (idx === 1) onRingAction('next');
             else if (idx === 2) onRingAction('prev');
-            else onRingAction('click');
+            else if (idx === 0) onRingAction('click');
           }
         });
 
