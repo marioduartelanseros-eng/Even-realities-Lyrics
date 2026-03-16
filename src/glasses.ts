@@ -44,11 +44,34 @@ interface EvenHubEventPayload {
   listEvent?: EvenHubListEventPayload;
 }
 
-function parseDeviceConnected(status: unknown): boolean | null {
+const CONNECTED_STATUS_VALUES = new Set(['connected', 'ready', 'online']);
+const DISCONNECTED_STATUS_VALUES = new Set([
+  'disconnected',
+  'offline',
+  'not_connected',
+  'connectionfailed',
+  'connection_failed',
+]);
+const MAX_STATUS_PARSE_DEPTH = 4;
+
+function parseConnectedToken(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase();
+    if (CONNECTED_STATUS_VALUES.has(normalized)) return true;
+    if (DISCONNECTED_STATUS_VALUES.has(normalized)) return false;
+  }
+  return null;
+}
+
+function parseDeviceConnected(status: unknown, depth = 0): boolean | null {
   // Even Hub SDK status payloads vary by platform/version.
   // Accept common boolean fields and simple textual status values.
-  if (typeof status === 'boolean') return status;
+  const direct = parseConnectedToken(status);
+  if (direct !== null) return direct;
   if (!status || typeof status !== 'object') return null;
+  if (depth >= MAX_STATUS_PARSE_DEPTH) return null;
 
   const candidate = status as {
     connected?: unknown;
@@ -58,62 +81,25 @@ function parseDeviceConnected(status: unknown): boolean | null {
     status?: unknown;
     data?: unknown;
     payload?: unknown;
-    isDisconnected?: unknown;
   };
 
-  if (typeof candidate.connected === 'boolean') return candidate.connected;
-  if (typeof candidate.isConnected === 'boolean') return candidate.isConnected;
-  if (typeof candidate.deviceConnected === 'boolean') return candidate.deviceConnected;
-  if (typeof candidate.connected === 'number') return candidate.connected !== 0;
-  if (typeof candidate.isConnected === 'number') return candidate.isConnected !== 0;
-  if (typeof candidate.deviceConnected === 'number') return candidate.deviceConnected !== 0;
-  if (typeof candidate.isConnected === 'function') {
-    try {
-      const result = candidate.isConnected();
-      if (typeof result === 'boolean') return result;
-    } catch {
-      // Ignore method invocation errors from unknown payloads.
-    }
-  }
-  if (typeof candidate.isDisconnected === 'function') {
-    try {
-      const result = candidate.isDisconnected();
-      if (typeof result === 'boolean') return !result;
-    } catch {
-      // Ignore method invocation errors from unknown payloads.
-    }
-  }
-  if (typeof candidate.connectType === 'string') {
-    const normalizedConnectType = candidate.connectType.toLowerCase();
-    if (normalizedConnectType === 'connected' || normalizedConnectType === 'ready' || normalizedConnectType === 'online') {
-      return true;
-    }
-    if (
-      normalizedConnectType === 'disconnected'
-      || normalizedConnectType === 'offline'
-      || normalizedConnectType === 'not_connected'
-      || normalizedConnectType === 'connectionfailed'
-      || normalizedConnectType === 'connection_failed'
-    ) {
-      return false;
-    }
-  }
-  if (typeof candidate.status === 'string') {
-    const normalized = candidate.status.toLowerCase();
-    if (normalized === 'connected' || normalized === 'ready' || normalized === 'online') {
-      return true;
-    }
-    if (normalized === 'disconnected' || normalized === 'offline' || normalized === 'not_connected') {
-      return false;
-    }
-  }
+  const connectedValue = parseConnectedToken(candidate.connected);
+  if (connectedValue !== null) return connectedValue;
+  const isConnectedValue = parseConnectedToken(candidate.isConnected);
+  if (isConnectedValue !== null) return isConnectedValue;
+  const deviceConnectedValue = parseConnectedToken(candidate.deviceConnected);
+  if (deviceConnectedValue !== null) return deviceConnectedValue;
+  const connectTypeValue = parseConnectedToken(candidate.connectType);
+  if (connectTypeValue !== null) return connectTypeValue;
+  const statusValue = parseConnectedToken(candidate.status);
+  if (statusValue !== null) return statusValue;
   if (candidate.data) {
-    const nestedResult = parseDeviceConnected(candidate.data);
-    if (nestedResult !== null) return nestedResult;
+    const dataResult = parseDeviceConnected(candidate.data, depth + 1);
+    if (dataResult !== null) return dataResult;
   }
   if (candidate.payload) {
-    const nestedResult = parseDeviceConnected(candidate.payload);
-    if (nestedResult !== null) return nestedResult;
+    const payloadResult = parseDeviceConnected(candidate.payload, depth + 1);
+    if (payloadResult !== null) return payloadResult;
   }
 
   return null;
