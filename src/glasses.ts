@@ -408,9 +408,12 @@ async function initializeDisplayContainer(): Promise<boolean> {
       });
       console.log('IMAGE container result:', imgResult);
 
-      if (imgResult === 0) {
+      if (imgResult === 0 || imgResult === 1) {
         displayMode = 'image';
         startupPageInitialized = true;
+        if (imgResult === 1) {
+          console.log('IMAGE container already exists; continuing in IMAGE mode');
+        }
         console.log('Using IMAGE mode with PNG encoder');
 
         // Send initial frame
@@ -426,6 +429,7 @@ async function initializeDisplayContainer(): Promise<boolean> {
         c.font = '14px Arial, sans-serif';
         c.fillText('Waiting for music...', DISPLAY_W / 2, DISPLAY_H / 2 + 14);
         c.textAlign = 'left';
+        await new Promise(resolve => setTimeout(resolve, 300));
         await sendFrameToGlasses();
 
         updateGlassesStatusUI(true);
@@ -557,6 +561,7 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
           if (connected === false) {
             isConnected = false;
             displayMode = null;
+            startupPageInitialized = false;
             updateGlassesStatusUI(false);
             return;
           }
