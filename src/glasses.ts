@@ -507,7 +507,7 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
       console.log('Bridge ready:', bridge.ready);
 
       if (!listenersRegistered) {
-        bridge.onDeviceStatusChanged((status) => {
+        bridge.onDeviceStatusChanged(async (status) => {
           console.log('Device status changed:', status);
           const connected = parseDeviceConnected(status);
           if (connected === false) {
@@ -519,7 +519,10 @@ export async function initGlasses(maxRetries = 3, delayMs = 500): Promise<boolea
           if (connected === true) {
             isConnected = true;
             if (!displayMode) {
-              void initializeDisplayContainer();
+              const initialized = await initializeDisplayContainer();
+              if (!initialized) {
+                console.error('Failed to reinitialize display container after reconnect');
+              }
             } else {
               updateGlassesStatusUI(true);
             }
@@ -578,7 +581,11 @@ export async function displayLyricOnGlasses(
   elapsedMs?: number,
   totalMs?: number,
 ): Promise<void> {
-  if (!bridge || !isConnected || !displayMode) return;
+  if (!bridge || !isConnected) return;
+  if (!displayMode) {
+    const initialized = await initializeDisplayContainer();
+    if (!initialized) return;
+  }
 
   if (displayMode === 'image') {
     // Load album art (cached after first load)
