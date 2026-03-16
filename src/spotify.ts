@@ -119,7 +119,6 @@ export async function handleCallback(): Promise<boolean> {
         error: data.error,
         error_description: data.error_description,
         redirectUri,
-        clientId: clientId.substring(0, 8) + '...',
       });
     }
   } catch (err) {
