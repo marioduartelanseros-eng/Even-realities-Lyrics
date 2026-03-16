@@ -23,6 +23,7 @@ import {
   getStoredSpotifyClientId,
   setAuddApiToken,
   setSpotifyClientId,
+  clearRuntimeConfig,
 } from './runtime-config';
 
 // --- Constants ---
@@ -63,6 +64,7 @@ const timeTotal = document.getElementById('time-total')!;
 const lyricPrev = document.getElementById('lyric-prev')!;
 const lyricCurrent = document.getElementById('lyric-current')!;
 const lyricNext = document.getElementById('lyric-next')!;
+const btnClearCache = document.getElementById('btn-clear-cache') as HTMLButtonElement | null;;
 
 // --- Helpers ---
 function formatTime(ms: number): string {
@@ -211,6 +213,70 @@ function resetLyricsState(): void {
   lyricsLoading = false;
   noLyricsFound = false;
   currentSource = null;
+}
+
+// --- Clear all cache and logout ---
+function clearAllCacheAndLogout(): void {
+  // Stop all polling
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+  if (progressInterval) {
+    clearInterval(progressInterval);
+    progressInterval = null;
+  }
+
+  // Clear Spotify session (tokens, refresh token, PKCE verifier)
+  clearSpotifySession();
+
+  // Clear runtime configuration (Client ID, AudD API token)
+  clearRuntimeConfig();
+
+  // Reset all in-memory state
+  currentTrackId = null;
+  lyrics = [];
+  plainLyrics = null;
+  lastNowPlaying = null;
+  localProgressMs = 0;
+  lastLineIndex = -1;
+  isCurrentlyPlaying = false;
+  lyricsLoading = false;
+  noLyricsFound = false;
+  currentSource = null;
+  isAmbientRecognitionRunning = false;
+  lastAmbientRecognitionAt = 0;
+  ambientMicPromptDenied = false;
+
+  // Reset UI
+  trackName.textContent = 'No track playing';
+  artistName.textContent = 'Play something on Spotify';
+  albumArt.src = '';
+  lyricPrev.textContent = '';
+  lyricCurrent.textContent = 'Waiting for lyrics...';
+  lyricNext.textContent = '';
+  progressFill.style.width = '0%';
+  timeCurrent.textContent = '0:00';
+  timeTotal.textContent = '0:00';
+
+  // Clear settings input fields
+  if (spotifyClientIdInput) spotifyClientIdInput.value = '';
+  if (auddApiTokenInput) auddApiTokenInput.value = '';
+
+  // Show login screen
+  showScreen('login');
+
+  // Show success message
+  if (loginHint) {
+    loginHint.textContent = '✓ Cache cleared! Please re-enter your keys and connect Spotify.';
+    loginHint.style.color = '#4ade80'; // green color
+    setTimeout(() => {
+      loginHint.textContent = 'Link your Spotify to see lyrics for what you\'re playing';
+      loginHint.style.color = ''; // reset to default
+    }, 5000);
+  }
+
+  console.log('Cache cleared and logged out successfully');
 }
 
 // --- Polling loop ---
@@ -448,10 +514,21 @@ function setupSettingsSave(): void {
   });
 }
 
+function setupClearCacheButton(): void {
+  if (!btnClearCache) return;
+
+  btnClearCache.addEventListener('click', () => {
+    if (confirm('This will clear all cached data and log you out. Are you sure?')) {
+      clearAllCacheAndLogout();
+    }
+  });
+}
+
 // --- Init ---
 async function init(): Promise<void> {
   setupSettingsInputs();
   setupSettingsSave();
+  setupClearCacheButton();
 
   // Check for OAuth callback
   if (window.location.search.includes('code=')) {

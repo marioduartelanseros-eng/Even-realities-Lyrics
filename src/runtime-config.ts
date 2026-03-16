@@ -42,3 +42,8 @@ export function setAuddApiToken(token: string): void {
     localStorage.removeItem(AUDD_API_TOKEN_KEY);
   }
 }
+
+export function clearRuntimeConfig(): void {
+  localStorage.removeItem(SPOTIFY_CLIENT_ID_KEY);
+  localStorage.removeItem(AUDD_API_TOKEN_KEY);
+}
