@@ -57,6 +57,8 @@ export async function loginWithSpotify(): Promise<void> {
     throw new Error('Set your Spotify Client ID first in the login settings.');
   }
   const redirectUri = getSpotifyRedirectUri();
+  
+  console.log('Starting Spotify OAuth flow with redirect URI:', redirectUri);
 
   const codeVerifier = generateRandomString(64);
   const codeChallenge = await generateCodeChallenge(codeVerifier);
@@ -78,6 +80,8 @@ export async function handleCallback(): Promise<boolean> {
   const clientId = getSpotifyClientId();
   if (!clientId) return false;
   const redirectUri = getSpotifyRedirectUri();
+  
+  console.log('Processing OAuth callback with redirect URI:', redirectUri);
 
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
@@ -105,12 +109,20 @@ export async function handleCallback(): Promise<boolean> {
       if (data.refresh_token) {
         localStorage.setItem('spotify_refresh_token', data.refresh_token);
       }
-      // Clean URL
-      window.history.replaceState({}, document.title, '/Even-realities-Lyrics');
+      // Clean URL - remove query parameters but keep the current path
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
       return true;
+    } else {
+      // Log the error response from Spotify for debugging
+      console.error('Spotify token exchange failed:', {
+        error: data.error,
+        error_description: data.error_description,
+        redirectUri,
+      });
     }
   } catch (err) {
-    console.error('Token exchange failed:', err);
+    console.error('Token exchange request failed:', err);
   }
   return false;
 }
