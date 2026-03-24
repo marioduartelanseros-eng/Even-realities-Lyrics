@@ -451,11 +451,9 @@ async function init(): Promise<void> {
     const success = await handleCallback();
     if (success) {
       showScreen('player');
-      await initGlasses();
-      // Reset so the current lyric state is pushed immediately after glasses connect
-      lastLineIndex = -2;
       setupRingController();
-      startPolling();
+      startPolling(); // Start immediately — don't block on glasses init
+      initGlasses().then(() => { lastLineIndex = -2; }); // Init in parallel, refresh when ready
       return;
     }
   }
@@ -463,11 +461,9 @@ async function init(): Promise<void> {
   // Check for existing session
   if (isLoggedIn()) {
     showScreen('player');
-    await initGlasses();
-    // Reset so the current lyric state is pushed immediately after glasses connect
-    lastLineIndex = -2;
     setupRingController();
-    startPolling();
+    startPolling(); // Start immediately — don't block on glasses init
+    initGlasses().then(() => { lastLineIndex = -2; }); // Init in parallel, refresh when ready
     return;
   }
 
