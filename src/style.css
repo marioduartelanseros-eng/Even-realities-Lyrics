@@ -176,9 +176,9 @@ body {
 }
 
 #album-art {
-  width: 56px;
-  height: 56px;
-  border-radius: 10px;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
   background: var(--bc-2nd);
   object-fit: cover;
   flex-shrink: 0;
@@ -234,6 +234,55 @@ body {
   letter-spacing: -0.11px;
   color: var(--tc-2nd);
   padding: 6px 16px 0;
+}
+
+/* ---- Playback Controls ---- */
+#controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 28px;
+  padding: 10px 16px 12px;
+  background: var(--bc-1st);
+  border-bottom: 1px solid var(--bc-3rd);
+}
+
+.ctrl-btn {
+  border: none;
+  background: none;
+  font-size: 26px;
+  color: var(--tc-1st);
+  cursor: pointer;
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.ctrl-btn:active {
+  transform: scale(0.88);
+  background: var(--bc-2nd);
+}
+.ctrl-btn.ctrl-primary {
+  font-size: 22px;
+  width: 60px;
+  height: 60px;
+  background: var(--bc-highlight);
+  color: var(--tc-highlight);
+  border-radius: 50%;
+}
+.ctrl-btn.ctrl-primary:active {
+  background: #3a3a3a;
+  transform: scale(0.90);
+}
+.ctrl-btn:disabled,
+.ctrl-btn.ctrl-disabled {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* ---- Lyrics ---- */

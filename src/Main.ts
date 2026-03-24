@@ -58,6 +58,9 @@ const progressFill  = document.getElementById('progress-fill')!;
 const timeCurrent   = document.getElementById('time-current')!;
 const timeTotal     = document.getElementById('time-total')!;
 const lyricsScroll  = document.getElementById('lyrics-scroll')!;
+const btnPrev       = document.getElementById('btn-prev')       as HTMLButtonElement | null;
+const btnPlayPause  = document.getElementById('btn-play-pause') as HTMLButtonElement | null;
+const btnNext       = document.getElementById('btn-next')       as HTMLButtonElement | null;
 
 // --- Helpers ---
 function formatTime(ms: number): string {
@@ -145,21 +148,28 @@ function showGlassesIdle(): void {
 }
 
 function showGlassesPaused(): void {
+  // Show last known lyric line so context is preserved, but make pause state obvious in subtitle
   const current = lyrics.length > 0 && lastLineIndex >= 0 ? lyrics[lastLineIndex].text : '';
   const next    = lyrics.length > 0 && lastLineIndex + 1 < lyrics.length ? lyrics[lastLineIndex + 1].text : '';
-  const prev    = lyrics.length > 0 && lastLineIndex > 0                 ? lyrics[lastLineIndex - 1].text : '';
 
   displayLyricOnGlasses(
-    current || '-- Paused --',
+    current || '- - -',
     next,
-    prev,
-    lastNowPlaying ? `${lastNowPlaying.trackName} (Paused)` : 'LyricLens',
-    lastNowPlaying?.artistName,
+    '',
+    lastNowPlaying?.trackName || 'LyricLens',
+    `|| Paused  —  ${lastNowPlaying?.artistName || ''}`,
     lastNowPlaying?.albumArt,
-    lastNowPlaying ? Math.min(100, (localProgressMs / lastNowPlaying.durationMs) * 100) : 0,
-    localProgressMs,
-    lastNowPlaying?.durationMs,
+    // No progress bar animation while paused — pass undefined
+    undefined,
+    undefined,
+    undefined,
   );
+}
+
+/** Keep the phone play/pause button icon in sync with playback state */
+function updatePlayPauseBtn(): void {
+  if (!btnPlayPause) return;
+  btnPlayPause.textContent = isCurrentlyPlaying ? '⏸' : '▶';
 }
 
 function showGlassesNoLyrics(): void {
@@ -218,6 +228,7 @@ async function onTrackUpdate(np: NowPlaying, source: 'spotify' | 'ambient' = 'sp
 
   const wasPlaying   = isCurrentlyPlaying;
   isCurrentlyPlaying = np.isPlaying;
+  updatePlayPauseBtn();
 
   localProgressMs = np.progressMs + (Date.now() - np.timestamp);
   lastNowPlaying  = np;
@@ -308,6 +319,7 @@ async function pollSpotify(): Promise<void> {
   // Nothing playing
   if (isCurrentlyPlaying || lastNowPlaying !== null) {
     isCurrentlyPlaying = false;
+    updatePlayPauseBtn();
     trackNameEl.textContent  = 'No track playing';
     artistNameEl.textContent = isAmbientRecognitionConfigured()
       ? 'Play Spotify or enable nearby audio'
@@ -347,6 +359,34 @@ async function tryRecognizeAmbientTrack(): Promise<RecognizedTrack | null> {
   } finally {
     isAmbientRecognitionRunning = false;
   }
+}
+
+// --- Playback controls ---
+function setupPlaybackControls(): void {
+  async function spotifyAction(url: string, method: 'PUT' | 'POST'): Promise<void> {
+    const token = await getAuthorizedAccessToken();
+    if (!token) return;
+    try {
+      await fetch(url, { method, headers: { Authorization: `Bearer ${token}` } });
+      setTimeout(pollSpotify, 500);
+    } catch (e) {
+      console.error('Playback control failed:', e);
+    }
+  }
+
+  btnPlayPause?.addEventListener('click', () => {
+    if (isCurrentlyPlaying) {
+      spotifyAction('https://api.spotify.com/v1/me/player/pause', 'PUT');
+    } else {
+      spotifyAction('https://api.spotify.com/v1/me/player/play', 'PUT');
+    }
+  });
+
+  btnPrev?.addEventListener('click', () =>
+    spotifyAction('https://api.spotify.com/v1/me/player/previous', 'POST'));
+
+  btnNext?.addEventListener('click', () =>
+    spotifyAction('https://api.spotify.com/v1/me/player/next', 'POST'));
 }
 
 function startPolling(): void {
@@ -433,6 +473,7 @@ async function init(): Promise<void> {
     if (success) {
       showScreen('player');
       setupRingController();
+      setupPlaybackControls();
       startPolling(); // Start immediately — don't block on glasses init
       initGlasses().then(() => { lastLineIndex = -2; }); // Init in parallel, refresh when ready
       return;
@@ -443,6 +484,7 @@ async function init(): Promise<void> {
   if (isLoggedIn()) {
     showScreen('player');
     setupRingController();
+    setupPlaybackControls();
     startPolling(); // Start immediately — don't block on glasses init
     initGlasses().then(() => { lastLineIndex = -2; }); // Init in parallel, refresh when ready
     return;
