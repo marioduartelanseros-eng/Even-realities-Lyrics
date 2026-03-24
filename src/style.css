@@ -239,39 +239,60 @@ body {
 /* ---- Lyrics ---- */
 #lyrics-container {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 16px;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--bc-1st);
+  /* hide scrollbar but keep scroll behaviour */
+  scrollbar-width: none;
+}
+#lyrics-container::-webkit-scrollbar {
+  display: none;
 }
 
 #lyrics-scroll {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  transition: transform 0.3s ease;
+  gap: 20px;
+  /* generous padding so first/last lines can scroll to centre */
+  padding: 180px 24px;
 }
 
 .lyric-line {
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: -0.15px;
+  color: rgba(35, 35, 35, 0.28);
+  text-align: center;
+  line-height: 1.55;
+  max-width: 340px;
+  transition: color 0.35s ease, font-size 0.35s ease, font-weight 0.35s ease;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* lines 1-2 away from current */
+.lyric-line.near {
+  color: rgba(35, 35, 35, 0.55);
+}
+
+/* active line */
+.lyric-line.current {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  color: var(--tc-1st);
+}
+
+/* status / loading messages inside the scroll area */
+.lyric-status {
   font-size: 15px;
   font-weight: 300;
   letter-spacing: -0.15px;
   color: var(--tc-2nd);
   text-align: center;
-  line-height: 1.6;
-  transition: all 0.3s ease;
-  max-width: 340px;
-}
-
-.lyric-line.current {
-  font-size: 20px;
-  font-weight: 400;
-  letter-spacing: -0.6px;
-  color: var(--tc-1st);
+  padding: 48px 0;
 }
 
 /* ---- Glasses Status Bar ---- */

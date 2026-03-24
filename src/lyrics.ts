@@ -2,18 +2,51 @@ import { parseLRC, type LrcLine } from './lrc-parser';
 
 export interface LyricsResult {
   synced: LrcLine[] | null;
-  plain: string | null;
+  plain:  string   | null;
 }
 
-/** Use only the primary artist name (before comma/&/feat) for better API matching */
+// ── Cache ──────────────────────────────────────────────────────────────────
+const CACHE_PREFIX = 'llc_'; // lyriclens cache
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function loadFromCache(trackId: string): LyricsResult | null {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + trackId);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (Date.now() - entry.t > CACHE_TTL_MS) {
+      localStorage.removeItem(CACHE_PREFIX + trackId);
+      return null;
+    }
+    console.log('[lyrics] Cache hit');
+    return { synced: entry.s ?? null, plain: entry.p ?? null };
+  } catch {
+    return null;
+  }
+}
+
+function saveToCache(trackId: string, result: LyricsResult): void {
+  try {
+    localStorage.setItem(CACHE_PREFIX + trackId, JSON.stringify({
+      s: result.synced,
+      p: result.plain,
+      t: Date.now(),
+    }));
+  } catch {
+    // localStorage full or unavailable — skip silently
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 function primaryArtist(artistName: string): string {
   return artistName.split(/,|&| feat\.? | ft\.? /i)[0].trim();
 }
 
+// ── LRCLIB ─────────────────────────────────────────────────────────────────
 async function fetchFromLrclib(
-  trackName: string,
-  artistName: string,
-  albumName: string,
+  trackName:   string,
+  artistName:  string,
+  albumName:   string,
   durationSec: number,
 ): Promise<LyricsResult | null> {
   const artist = primaryArtist(artistName);
@@ -50,67 +83,72 @@ async function fetchFromLrclib(
     if (!searchRes.ok) return null;
 
     const results = await searchRes.json();
-    console.log('[lyrics] LRCLIB search results count:', Array.isArray(results) ? results.length : 'not array');
+    console.log('[lyrics] LRCLIB results:', Array.isArray(results) ? results.length : 'not array');
     if (!Array.isArray(results) || results.length === 0) return null;
 
     const best = results.find((r: any) => r.syncedLyrics) ?? results[0];
-    console.log('[lyrics] LRCLIB best result synced:', !!best.syncedLyrics, 'plain:', !!best.plainLyrics);
     return {
       synced: best.syncedLyrics ? parseLRC(best.syncedLyrics) : null,
       plain:  best.plainLyrics  || null,
     };
   } catch (err) {
-    console.error('[lyrics] LRCLIB fetch error:', err);
+    console.error('[lyrics] LRCLIB error:', err);
     return null;
   }
 }
 
+// ── lyrics.ovh fallback ────────────────────────────────────────────────────
 async function fetchFromLyricsOvh(
-  trackName: string,
+  trackName:  string,
   artistName: string,
 ): Promise<string | null> {
   try {
     const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(primaryArtist(artistName))}/${encodeURIComponent(trackName)}`;
-    console.log('[lyrics] lyrics.ovh:', url);
     const res = await fetch(url);
-    console.log('[lyrics] lyrics.ovh status:', res.status);
     if (!res.ok) return null;
     const data = await res.json();
     return data.lyrics || null;
-  } catch (err) {
-    console.error('[lyrics] lyrics.ovh fetch error:', err);
+  } catch {
     return null;
   }
 }
 
+// ── Public API ─────────────────────────────────────────────────────────────
 export async function fetchLyrics(
-  trackName: string,
-  artistName: string,
-  albumName: string,
+  trackId:     string, // used for caching
+  trackName:   string,
+  artistName:  string,
+  albumName:   string,
   durationSec: number,
 ): Promise<LyricsResult> {
-  console.log('[lyrics] Fetching for:', trackName, 'by', artistName);
+  // Return cached result immediately if available
+  const cached = loadFromCache(trackId);
+  if (cached) return cached;
 
-  // Run both APIs in parallel — take whichever returns synced lyrics first
-  const [lrclibResult, ovhPlain] = await Promise.all([
+  console.log('[lyrics] Fetching:', trackName, 'by', artistName);
+
+  // Run both APIs in parallel — prefer synced > plain > nothing
+  const [lrclib, ovhPlain] = await Promise.all([
     fetchFromLrclib(trackName, artistName, albumName, durationSec),
     fetchFromLyricsOvh(trackName, artistName),
   ]);
 
-  // Prefer LRCLIB synced > LRCLIB plain > lyrics.ovh plain
-  if (lrclibResult?.synced && lrclibResult.synced.length > 0) {
-    console.log('[lyrics] Using LRCLIB synced lyrics');
-    return lrclibResult;
-  }
-  if (lrclibResult?.plain) {
-    console.log('[lyrics] Using LRCLIB plain lyrics');
-    return { synced: null, plain: lrclibResult.plain };
-  }
-  if (ovhPlain) {
-    console.log('[lyrics] Using lyrics.ovh plain lyrics');
-    return { synced: null, plain: ovhPlain };
+  let result: LyricsResult;
+
+  if (lrclib?.synced && lrclib.synced.length > 0) {
+    console.log('[lyrics] Using LRCLIB synced');
+    result = lrclib;
+  } else if (lrclib?.plain) {
+    console.log('[lyrics] Using LRCLIB plain');
+    result = { synced: null, plain: lrclib.plain };
+  } else if (ovhPlain) {
+    console.log('[lyrics] Using lyrics.ovh plain');
+    result = { synced: null, plain: ovhPlain };
+  } else {
+    console.warn('[lyrics] No lyrics found for:', trackName);
+    result = { synced: null, plain: null };
   }
 
-  console.warn('[lyrics] No lyrics found for:', trackName, artistName);
-  return { synced: null, plain: null };
+  saveToCache(trackId, result);
+  return result;
 }
