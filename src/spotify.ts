@@ -105,8 +105,8 @@ export async function handleCallback(): Promise<boolean> {
       if (data.refresh_token) {
         localStorage.setItem('spotify_refresh_token', data.refresh_token);
       }
-      // Clean URL
-      window.history.replaceState({}, document.title, '/');
+      // Clean URL — keep pathname so GitHub Pages subdirectory stays intact
+      window.history.replaceState({}, document.title, window.location.pathname);
       return true;
     }
   } catch (err) {
