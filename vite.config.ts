@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 
+const isEhpkBuild = process.env.EVENHUB_BUILD === '1';
+
 export default defineConfig({
-  base: '/Even-realities-Lyrics/',
+  base: isEhpkBuild ? './' : '/Even-realities-Lyrics/',
   root: '.',
   server: {
     port: 5173,
@@ -9,5 +11,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    assetsDir: isEhpkBuild ? '' : 'assets',
   },
 });

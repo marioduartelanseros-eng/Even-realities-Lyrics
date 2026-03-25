@@ -1,0 +1,25 @@
+{
+  "package_id": "com.marioduartelanseros.lyriclens",
+  "edition": "202601",
+  "name": "Spotify Lyrics",
+  "version": "1.0.0",
+  "min_app_version": "2.0.0",
+  "min_sdk_version": "0.0.8",
+  "entrypoint": "index.html",
+  "permissions": [
+    {
+      "name": "network",
+      "desc": "LyricLens needs network access to connect to Spotify (playback & OAuth), fetch synced lyrics from LRCLIB, and optionally identify ambient music via AudD.",
+      "whitelist": [
+        "https://accounts.spotify.com",
+        "https://api.spotify.com",
+        "https://lrclib.net",
+        "https://api.audd.io",
+        "https://i.scdn.co"
+      ]
+    }
+  ],
+  "supported_languages": [
+    "en"
+  ]
+}

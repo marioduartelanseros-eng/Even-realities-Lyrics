@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:ehpk": "EVENHUB_BUILD=1 vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@evenrealities/even_hub_sdk": "^0.0.7"
+    "@evenrealities/even_hub_sdk": "^0.0.8"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
