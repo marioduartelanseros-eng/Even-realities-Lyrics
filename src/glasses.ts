@@ -197,6 +197,7 @@ export async function displayLyricOnGlasses(
   elapsedMs?:   number,
   totalMs?:     number,
 ): Promise<void> {
+  console.log('[glasses] displayLyric called — connected:', isConnected, 'initialized:', isInitialized, 'sending:', isSending);
   if (!bridge || !isConnected || !isInitialized) return;
   if (isSending) return; // drop frame if previous send is still in flight
   isSending = true;
@@ -225,7 +226,7 @@ export async function displayLyricOnGlasses(
 
   try {
     // Rebuild all containers (SDK requires image to be included every time)
-    await bridge.rebuildPageContainer({
+    const rebuildResult = await bridge.rebuildPageContainer({
       containerTotalNum: 4,
       imageObject: [
         {
@@ -285,6 +286,8 @@ export async function displayLyricOnGlasses(
         },
       ],
     });
+
+    console.log('[glasses] rebuildPageContainer result:', rebuildResult);
 
     // Re-send album art after every rebuild (SDK clears image placeholder on rebuild)
     if (albumArtUrl) {
