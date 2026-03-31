@@ -336,9 +336,9 @@ function formatTime(ms: number): string {
 }
 
 function buildProgressBar(pct: number): string {
-  const total  = 20;
+  const total  = 16;
   const filled = Math.round((pct / 100) * total);
-  return '━'.repeat(filled) + '─'.repeat(total - filled);
+  return '[' + '='.repeat(filled) + '-'.repeat(total - filled) + ']';
 }
 
 function updateGlassesStatusUI(connected: boolean): void {
