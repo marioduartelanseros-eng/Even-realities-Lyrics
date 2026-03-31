@@ -125,10 +125,10 @@ export async function initGlasses(): Promise<boolean> {
           width:         464,
           height:        90,
           itemContainer: {
-            itemCount:           3,
+            itemCount:           2,
             itemWidth:           0,
             isItemSelectBorderEn: 0,
-            itemName:            ['Spotify Lyrics', 'Ready', ''],
+            itemName:            ['Spotify Lyrics', 'Ready'],
           },
           isEventCapture: 0,
         },
@@ -201,23 +201,22 @@ export async function displayLyricOnGlasses(
   if (isSending) return; // drop frame if previous send is still in flight
   isSending = true;
 
-  const MAX_TITLE = 44; // title area is narrower (art on left)
-  const MAX_LYRIC = 56; // full-width lyric containers
+  const MAX = 52;
 
   // Row 0: track name
-  // Row 1: artist name
-  // Row 2: 1:58 ━━━━━━━━━━────────── 3:12
+  // Row 1: artist  1:58 ━━━━━━━━━━────────── 3:12
   const titleItems: string[] = [];
   if (trackName) {
-    titleItems.push(truncate(trackName,      MAX_TITLE));
-    titleItems.push(truncate(artistName || '', MAX_TITLE));
+    titleItems.push(truncate(trackName, MAX));
+    const artist  = artistName || '';
     const elapsed = typeof elapsedMs   === 'number' ? formatTime(elapsedMs) : '';
     const total   = typeof totalMs     === 'number' ? formatTime(totalMs)   : '';
     const bar     = typeof progressPct === 'number' ? buildProgressBar(progressPct) : '';
-    titleItems.push(elapsed && total ? `${elapsed} ${bar} ${total}` : bar);
+    titleItems.push(elapsed && total
+      ? truncate(`${artist}  ${elapsed} ${bar} ${total}`, MAX)
+      : truncate(artist, MAX));
   } else {
     titleItems.push('Spotify Lyrics');
-    titleItems.push('');
     titleItems.push('');
   }
 
@@ -247,7 +246,7 @@ export async function displayLyricOnGlasses(
           width:         464,
           height:        90,
           itemContainer: {
-            itemCount:           3,
+            itemCount:           2,
             itemWidth:           0,
             isItemSelectBorderEn: 0,
             itemName:            titleItems,
