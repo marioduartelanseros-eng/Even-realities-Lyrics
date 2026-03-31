@@ -220,8 +220,8 @@ export async function displayLyricOnGlasses(
     titleItems.push('');
   }
 
-  const currentItems = currentLine ? [truncate(currentLine, MAX_LYRIC)] : [''];
-  const nextItems    = nextLine    ? [truncate(nextLine,    MAX_LYRIC)] : [''];
+  const currentItems = currentLine ? [truncate(currentLine, MAX)] : [''];
+  const nextItems    = nextLine    ? [truncate(nextLine,    MAX)] : [''];
 
   try {
     // Rebuild all containers (SDK requires image to be included every time)
