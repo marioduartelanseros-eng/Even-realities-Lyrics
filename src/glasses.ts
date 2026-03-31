@@ -10,8 +10,7 @@ const ART_H = 88;
 
 // Container IDs
 const ID_ART     = 100; // image container — album art
-const ID_TITLE   = 101; // list — track name + artist + progress bar
-const ID_PREV    = 104; // list — previous lyric line
+const ID_TITLE   = 101; // list — track name / artist / progress bar (3 items)
 const ID_CURRENT = 102; // list — current lyric line  (isEventCapture=1)
 const ID_NEXT    = 103; // list — next lyric line
 
@@ -100,12 +99,13 @@ export async function initGlasses(): Promise<boolean> {
 
     // createStartUpPageContainer must be called exactly ONCE.
     // Layout:
-    //   [ART 88x88]  [title / artist / progress bar]   ← y=5..95
-    //   [prev lyric — dimmer]                          ← y=97..132
-    //   [current lyric — BORDERED]                     ← y=135..213
-    //   [next lyric — dimmer]                          ← y=215..265
+    //   [ART 88x88]  [track name   ]   ← row 1
+    //                [artist name  ]   ← row 2
+    //                [progress bar ]   ← row 3
+    //   [current lyric — BORDERED  ]   ← y=102
+    //   [next lyric                ]   ← y=197
     const result = await bridge.createStartUpPageContainer({
-      containerTotalNum: 5,
+      containerTotalNum: 4,
       imageObject: [
         {
           containerID:   ID_ART,
@@ -133,27 +133,12 @@ export async function initGlasses(): Promise<boolean> {
           isEventCapture: 0,
         },
         {
-          containerID:   ID_PREV,
-          containerName: 'prev',
-          xPosition:     8,
-          yPosition:     97,
-          width:         560,
-          height:        36,
-          itemContainer: {
-            itemCount:           1,
-            itemWidth:           0,
-            isItemSelectBorderEn: 0,
-            itemName:            [''],
-          },
-          isEventCapture: 0,
-        },
-        {
           containerID:   ID_CURRENT,
           containerName: 'current',
           xPosition:     8,
-          yPosition:     135,
+          yPosition:     102,
           width:         560,
-          height:        78,
+          height:        90,
           itemContainer: {
             itemCount:           1,
             itemWidth:           0,
@@ -166,7 +151,7 @@ export async function initGlasses(): Promise<boolean> {
           containerID:   ID_NEXT,
           containerName: 'next',
           xPosition:     8,
-          yPosition:     216,
+          yPosition:     197,
           width:         560,
           height:        50,
           itemContainer: {
@@ -204,7 +189,7 @@ export async function initGlasses(): Promise<boolean> {
 export async function displayLyricOnGlasses(
   currentLine:  string,
   nextLine?:    string,
-  prevLine?:    string,
+  _prevLine?:   string,
   trackName?:   string,
   artistName?:  string,
   albumArtUrl?: string,
@@ -216,15 +201,15 @@ export async function displayLyricOnGlasses(
   if (isSending) return; // drop frame if previous send is still in flight
   isSending = true;
 
-  const MAX_TITLE  = 44; // title area is narrower (art on left)
-  const MAX_LYRIC  = 56; // full-width lyric containers
+  const MAX_TITLE = 44; // title area is narrower (art on left)
+  const MAX_LYRIC = 56; // full-width lyric containers
 
   // Row 0: track name
   // Row 1: artist name
   // Row 2: 1:58 ━━━━━━━━━━────────── 3:12
   const titleItems: string[] = [];
   if (trackName) {
-    titleItems.push(truncate(trackName,  MAX_TITLE));
+    titleItems.push(truncate(trackName,      MAX_TITLE));
     titleItems.push(truncate(artistName || '', MAX_TITLE));
     const elapsed = typeof elapsedMs   === 'number' ? formatTime(elapsedMs) : '';
     const total   = typeof totalMs     === 'number' ? formatTime(totalMs)   : '';
@@ -236,14 +221,13 @@ export async function displayLyricOnGlasses(
     titleItems.push('');
   }
 
-  const prevItems    = prevLine    ? [truncate(prevLine,    MAX_LYRIC)] : [''];
   const currentItems = currentLine ? [truncate(currentLine, MAX_LYRIC)] : [''];
   const nextItems    = nextLine    ? [truncate(nextLine,    MAX_LYRIC)] : [''];
 
   try {
     // Rebuild all containers (SDK requires image to be included every time)
     await bridge.rebuildPageContainer({
-      containerTotalNum: 5,
+      containerTotalNum: 4,
       imageObject: [
         {
           containerID:   ID_ART,
@@ -271,27 +255,12 @@ export async function displayLyricOnGlasses(
           isEventCapture: 0,
         },
         {
-          containerID:   ID_PREV,
-          containerName: 'prev',
-          xPosition:     8,
-          yPosition:     97,
-          width:         560,
-          height:        36,
-          itemContainer: {
-            itemCount:           1,
-            itemWidth:           0,
-            isItemSelectBorderEn: 0,
-            itemName:            prevItems,
-          },
-          isEventCapture: 0,
-        },
-        {
           containerID:   ID_CURRENT,
           containerName: 'current',
           xPosition:     8,
-          yPosition:     135,
+          yPosition:     102,
           width:         560,
-          height:        78,
+          height:        90,
           itemContainer: {
             itemCount:           1,
             itemWidth:           0,
@@ -304,7 +273,7 @@ export async function displayLyricOnGlasses(
           containerID:   ID_NEXT,
           containerName: 'next',
           xPosition:     8,
-          yPosition:     216,
+          yPosition:     197,
           width:         560,
           height:        50,
           itemContainer: {

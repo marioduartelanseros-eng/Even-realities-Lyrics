@@ -252,7 +252,7 @@ async function onTrackUpdate(np: NowPlaying, source: 'spotify' | 'ambient' = 'sp
     noLyricsFound  = false;
 
     setLyricsStatus('Loading lyrics...');
-    showGlassesIdle(); // show "Loading lyrics..." while waiting
+    sendToGlasses('♪  Loading lyrics...', '', ''); // show track info + art immediately
 
     const result: LyricsResult = await fetchLyrics(
       np.trackId,
