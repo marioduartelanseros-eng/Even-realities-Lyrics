@@ -6,12 +6,7 @@ const ENV = (import.meta as ImportMeta & {
 }).env;
 
 export function getSpotifyRedirectUri(): string {
-  // Return the current page URL (no query/hash) so it works on both
-  // localhost and GitHub Pages subdirectory deployments like /Even-realities-Lyrics/
-  const url = new URL(window.location.href);
-  url.search = '';
-  url.hash = '';
-  return url.toString();
+  return 'https://marioduartelanseros-eng.github.io/Even-realities-Lyrics/';
 }
 
 export function getStoredSpotifyClientId(): string {
